@@ -17,6 +17,7 @@ package rectangularcartogram.data.lp;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import rectangularcartogram.data.Pair;
 
 public abstract class Constraint {
@@ -29,12 +30,17 @@ public abstract class Constraint {
         this.rightHandSide = rightHandSide;
     }
     
-    public class Linear extends Constraint {
+    public static class Linear extends Constraint {
         private final List<Pair<Double,String>> terms;
 
         public Linear(Comparison op, double rightHandSide) {
             super(op, rightHandSide);
             terms = new ArrayList<>();
+        }
+        
+        public Linear(Comparison op, double rightHandSide, List<Pair<Double,String>> terms) {
+            super(op, rightHandSide);
+            this.terms = new ArrayList<>(terms);
         }
 
         public List<Pair<Double, String>> getTerms() {
@@ -55,6 +61,105 @@ public abstract class Constraint {
                     sb.append(term.getFirst());
                     first = false;
                 } else if (term.getFirst() < 0) {
+                    sb.append("- ").append(Double.toString(-1 * term.getFirst()));
+                } else {
+                    sb.append("+ ").append(term.getFirst());
+                }
+                
+                sb.append(" ").append(term.getSecond()).append(" ");
+            }
+            
+            sb.append(getComparison()).append(" ").append(Double.toString(getRightHandSide()));
+            
+            return sb.toString();
+        }
+    }
+    
+    public static class BiLinear extends Constraint {
+        private final List<Pair<Double,String>> linearTerms;
+        private final List<Pair<Double,Pair<String,String>>> bilinearTerms;
+
+        public BiLinear(Comparison op, double rightHandSide) {
+            super(op, rightHandSide);
+            linearTerms = new ArrayList<>();
+            bilinearTerms = new ArrayList<>();
+        }
+
+        public List<Pair<Double, String>> getLinearTerms() {
+            return linearTerms;
+        }
+        
+        public void addLinearTerm(double factor, String variable) {
+            linearTerms.add(new Pair<>(factor, variable));
+        }
+
+        public List<Pair<Double, Pair<String, String>>> getBilinearTerms() {
+            return bilinearTerms;
+        }
+        
+        public void addBilinearTerm(double factor, String variable1, String variable2) {
+            bilinearTerms.add(new Pair<>(factor, new Pair<>(variable1, variable2)));
+        }
+        
+        public Linear restrictToLinear(Map<String,Double> variableAssignment) {
+            double newRightHandSide = getRightHandSide();
+            List<Pair<Double,String>> newLinearTerms = new ArrayList<>();
+            
+            for (Pair<Double, String> linearTerm : linearTerms) {
+                if (variableAssignment.containsKey(linearTerm.getSecond())) {
+                    newRightHandSide -= linearTerm.getFirst() * variableAssignment.get(linearTerm.getSecond());
+                } else {
+                    newLinearTerms.add(new Pair<>(linearTerm.getFirst(), linearTerm.getSecond()));
+                }
+            }
+            
+            for (Pair<Double, Pair<String, String>> bilinearTerm : bilinearTerms) {
+                String var1 = bilinearTerm.getSecond().getFirst();
+                String var2 = bilinearTerm.getSecond().getSecond();
+                Pair<Double,String> newTerm = null;
+                
+                if (variableAssignment.containsKey(var1)) {
+                    if (variableAssignment.containsKey(var2)) {
+                        newRightHandSide -= bilinearTerm.getFirst() * variableAssignment.get(var1) * variableAssignment.get(var2);
+                    } else {
+                        newTerm = new Pair<>(bilinearTerm.getFirst() * variableAssignment.get(var1), var2);
+                    }
+                } else if (variableAssignment.containsKey(var2)) {
+                    newTerm = new Pair<>(bilinearTerm.getFirst() * variableAssignment.get(var2), var1);
+                } else {
+                    throw new IllegalArgumentException("The variable assignment must contain values for at least one of the variables of each bilinear term.");
+                }
+                
+                if (newTerm != null) {
+                    boolean found = false;
+                    
+                    for (Pair<Double, String> newLinearTerm : newLinearTerms) {
+                        if (newLinearTerm.getSecond().equals(newTerm.getSecond())) {
+                            newLinearTerm.setFirst(newLinearTerm.getFirst() + newTerm.getFirst());
+                            found = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!found) {
+                        newLinearTerms.add(newTerm);
+                    }
+                }
+            }
+            
+            return new Linear(getComparison(), newRightHandSide, newLinearTerms);
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            boolean first = true;
+            
+            for (Pair<Double, String> term : linearTerms) {
+                if (first) {
+                    sb.append(term.getFirst());
+                    first = false;
+                } else if (term.getFirst() < 0) {
                     sb.append(" - ").append(Double.toString(-1 * term.getFirst()));
                 } else {
                     sb.append(" + ").append(term.getFirst());
@@ -63,7 +168,20 @@ public abstract class Constraint {
                 sb.append(" ").append(term.getSecond()).append(" ");
             }
             
-            sb.append(comparison).append(" ").append(Double.toString(rightHandSide));
+            for (Pair<Double, Pair<String, String>> term : bilinearTerms) {
+                if (first) {
+                    sb.append(term.getFirst());
+                    first = false;
+                } else if (term.getFirst() < 0) {
+                    sb.append(" - ").append(Double.toString(-1 * term.getFirst()));
+                } else {
+                    sb.append(" + ").append(term.getFirst());
+                }
+                
+                sb.append(" ").append(term.getSecond().getFirst()).append(" * ").append(term.getSecond().getSecond()).append(" ");
+            }
+            
+            sb.append(getComparison()).append(" ").append(Double.toString(getRightHandSide()));
             
             return sb.toString();
         }
