@@ -23,7 +23,6 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import rectangularcartogram.data.lp.Constraint;
 import static org.junit.Assert.*;
 
 /**
