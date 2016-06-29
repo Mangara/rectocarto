@@ -1,0 +1,22 @@
+BASIC:
+- Open map (SHP)
+- Generate cartogram
+- Save cartogram (SHP, SVG, IPE, PNG)
+
+BASIC2:
+- Open map (IPE, SVG)
+- Add data (CSV, DBF)
+- Generate cartogram
+- Save cartogram
+
+ADVANCED:
+- Open map
+- Refine map:
+ x Automatically triangulate
+ x Merge regions
+ x Automatically generate sea regions
+- Add data
+- Generate cartogram
+- Refine cartogram:
+ x Use current cartogram as base to run further optimizations with different functions
+- Save cartogram
