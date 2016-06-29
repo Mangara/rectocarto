@@ -106,7 +106,7 @@ public class RegularEdgeLabeling extends HashMap<Edge, Pair<Labeling, Direction>
     }
 
     /**
-     * Returns a list of all neighbours of this regular edge coloring.
+     * Returns a list of all neighbours of this regular edge labeling.
      * @return
      */
     public List<RegularEdgeLabeling> getNeighbours() {
@@ -124,7 +124,7 @@ public class RegularEdgeLabeling extends HashMap<Edge, Pair<Labeling, Direction>
     }
 
     /**
-     * Returns the i-th neighbour of this regular edge coloring.
+     * Returns the i-th neighbour of this regular edge labeling.
      * The i-th neighbour is null if the i-th 4-cycle is not colored alternatingly, otherwise it is the result of flipping the colors of all edges inside this alternating 4-cycle.
      * @param i
      * @return
@@ -184,7 +184,7 @@ public class RegularEdgeLabeling extends HashMap<Edge, Pair<Labeling, Direction>
     }
 
     /**
-     * Returns the regular edge coloring that results from taking a step down the lattice (towards the minimum labeling) by flipping the color of all edges inside a random right alternating 4-cycle, or this labeling if no such cycle exists.
+     * Returns the regular edge labeling that results from taking a step down the lattice (towards the minimum labeling) by flipping the color of all edges inside a random right alternating 4-cycle, or this labeling if no such cycle exists.
      * @return
      */
     public RegularEdgeLabeling moveDownRandomly() {
@@ -243,7 +243,7 @@ public class RegularEdgeLabeling extends HashMap<Edge, Pair<Labeling, Direction>
     }
 
     /**
-     * Returns the regular edge coloring that results from taking a step up the lattice (towards the maximum labeling) by flipping the color of all edges inside a random left alternating 4-cycle, or this labeling if no such cycle exists.
+     * Returns the regular edge labeling that results from taking a step up the lattice (towards the maximum labeling) by flipping the color of all edges inside a random left alternating 4-cycle, or this labeling if no such cycle exists.
      * @return
      */
     public RegularEdgeLabeling moveUpRandomly() {
