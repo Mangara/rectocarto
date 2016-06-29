@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rectangularcartogram.data.lp;
+package rectocarto.data.lp;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,6 +23,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import rectangularcartogram.data.lp.Constraint;
 import static org.junit.Assert.*;
 
 /**
