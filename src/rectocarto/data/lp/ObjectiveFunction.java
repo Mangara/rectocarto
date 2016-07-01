@@ -48,6 +48,27 @@ public interface ObjectiveFunction {
             
             return result;
         }
+        
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            boolean first = true;
+            
+            for (Pair<Double, String> term : terms) {
+                if (first) {
+                    sb.append(term.getFirst());
+                    first = false;
+                } else if (term.getFirst() < 0) {
+                    sb.append(" - ").append(Double.toString(-1 * term.getFirst()));
+                } else {
+                    sb.append(" + ").append(term.getFirst());
+                }
+                
+                sb.append(" ").append(term.getSecond());
+            }
+            
+            return sb.toString();
+        }
     }
     
     public class Quadratic implements ObjectiveFunction {
@@ -89,6 +110,40 @@ public interface ObjectiveFunction {
             }
             
             return result;
+        }
+        
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            boolean first = true;
+            
+            for (Pair<Double, String> term : linearTerms) {
+                if (first) {
+                    sb.append(term.getFirst());
+                    first = false;
+                } else if (term.getFirst() < 0) {
+                    sb.append(" - ").append(Double.toString(-1 * term.getFirst()));
+                } else {
+                    sb.append(" + ").append(term.getFirst());
+                }
+                
+                sb.append(" ").append(term.getSecond());
+            }
+            
+            for (Pair<Double, String> term : quadraticTerms) {
+                if (first) {
+                    sb.append(term.getFirst());
+                    first = false;
+                } else if (term.getFirst() < 0) {
+                    sb.append(" - ").append(Double.toString(-1 * term.getFirst()));
+                } else {
+                    sb.append(" + ").append(term.getFirst());
+                }
+                
+                sb.append(" ").append(term.getSecond()).append("^2");
+            }
+            
+            return sb.toString();
         }
     }
 }

@@ -173,9 +173,9 @@ public abstract class Constraint {
                     sb.append(term.getFirst());
                     first = false;
                 } else if (term.getFirst() < 0) {
-                    sb.append(" - ").append(Double.toString(-1 * term.getFirst()));
+                    sb.append("- ").append(Double.toString(-1 * term.getFirst()));
                 } else {
-                    sb.append(" + ").append(term.getFirst());
+                    sb.append("+ ").append(term.getFirst());
                 }
                 
                 sb.append(" ").append(term.getSecond().getFirst()).append(" * ").append(term.getSecond().getSecond()).append(" ");
