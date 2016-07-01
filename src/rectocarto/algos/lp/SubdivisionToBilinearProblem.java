@@ -15,6 +15,7 @@
  */
 package rectocarto.algos.lp;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import rectangularcartogram.data.Pair;
@@ -24,15 +25,17 @@ import rectangularcartogram.data.graph.Graph;
 import rectocarto.data.CartogramSettings;
 import rectangularcartogram.data.subdivision.Subdivision;
 import rectangularcartogram.data.subdivision.SubdivisionFace;
+import rectocarto.data.lp.Constraint;
 import rectocarto.data.lp.MinimizationProblem;
+import rectocarto.data.lp.ObjectiveFunction;
 
 public class SubdivisionToBilinearProblem {
 
     /**
      * Constructs the appropriate bilinear optimization problem for a given
      * subdivision with these cartogram settings.
-     * 
-     * TODO: incorrect sea adjacencies
+     *
+     * TODO: handle child regions explicitly TODO: incorrect sea adjacencies
      * TODO: incorrect adjacency level
      *
      * @param sub
@@ -41,14 +44,17 @@ public class SubdivisionToBilinearProblem {
      */
     public static MinimizationProblem constructProblem(Subdivision sub, CartogramSettings settings) {
         Map<SubdivisionFace, FaceSegments> segments = identifySegments(sub);
+        MinimizationProblem problem = new MinimizationProblem();
 
-        // Add all constraints:
-        // x Boundary
-        // x Planarity
-        // x Area
-        // x Aspect Ratio
-        // x Adjacency
-        return null;
+        problem.setObjective(buildObjectiveFunction(sub, settings));
+
+        addBoundaryConstraints(problem, segments, sub, settings);
+        addPlanarityConstraints(problem, segments, sub, settings);
+        addAdjacencyConstraints(problem, segments, sub, settings);
+        addAspectRatioConstraints(problem, segments, sub, settings);
+        addAreaConstraints(problem, segments, sub, settings);
+        
+        return problem;
     }
 
     private static Map<SubdivisionFace, FaceSegments> identifySegments(Subdivision sub) {
@@ -69,8 +75,8 @@ public class SubdivisionToBilinearProblem {
         // Run union-find to eliminate duplicates
         RegularEdgeLabeling rel = sub.getDualGraph().getRegularEdgeLabeling();
         for (Edge edge : sub.getDualGraph().getEdges()) {
-            Pair<Graph.Labeling,Edge.Direction> label = rel.get(edge);
-            
+            Pair<Graph.Labeling, Edge.Direction> label = rel.get(edge);
+
             if (label.getFirst() == Graph.Labeling.BLUE) { // Horizontal
                 SubdivisionFace leftFace = sub.getFace(edge.getOrigin());
                 SubdivisionFace rightFace = sub.getFace(edge.getDestination());
@@ -81,7 +87,7 @@ public class SubdivisionToBilinearProblem {
                 segments.get(bottomFace).top.merge(segments.get(topFace).bottom);
             }
         }
-        
+
         // Update the segment mapping
         for (SubdivisionFace face : sub.getTopLevelFaces()) {
             FaceSegments s = segments.get(face);
@@ -90,7 +96,7 @@ public class SubdivisionToBilinearProblem {
             s.bottom = s.bottom.findRepresentative();
             s.top = s.top.findRepresentative();
         }
-        
+
         return segments;
     }
 
@@ -134,6 +140,79 @@ public class SubdivisionToBilinearProblem {
                 rep2.rank++;
             }
         }
+    }
+
+    private static ObjectiveFunction buildObjectiveFunction(Subdivision sub, CartogramSettings settings) {
+        ObjectiveFunction.Linear lin;
+        ObjectiveFunction.Quadratic quad;
+        
+        switch (settings.objective) {
+            case MAX_ERROR:
+                lin = new ObjectiveFunction.Linear();
+                lin.addTerm(1, "E_MAX");
+                return lin;
+            case AVERAGE_ERROR:
+                lin = new ObjectiveFunction.Linear();
+                for (int i = 0; i < sub.getTopLevelFaces().size(); i++) {
+                    lin.addTerm(1, "E_" + i);
+                }
+                return lin;
+            case MAX_AND_AVERAGE_ERROR:
+                lin = new ObjectiveFunction.Linear();
+                lin.addTerm(sub.getTopLevelFaces().size(), "E_MAX");
+                for (int i = 0; i < sub.getTopLevelFaces().size(); i++) {
+                    lin.addTerm(1, "E_" + i);
+                }
+                return lin;
+            case AVERAGE_ERROR_SQUARED:
+                quad = new ObjectiveFunction.Quadratic();
+                for (int i = 0; i < sub.getTopLevelFaces().size(); i++) {
+                    quad.addQuadraticTerm(1, "E_" + i);
+                }
+                return quad;
+            case MAX_AND_AVERAGE_ERROR_SQUARED:
+                quad = new ObjectiveFunction.Quadratic();
+                quad.addLinearTerm(sub.getTopLevelFaces().size(), "E_MAX");
+                for (int i = 0; i < sub.getTopLevelFaces().size(); i++) {
+                    quad.addQuadraticTerm(1, "E_" + i);
+                }
+                return quad;
+            default:
+                throw new IllegalArgumentException("Unexpected objective function type: " + settings.objective);
+        }
+    }
+    
+    private static void addBoundaryConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
+        
+    }
+    
+    private static void addPlanarityConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
+        for (SubdivisionFace f : sub.getTopLevelFaces()) {
+            // f.right - f.left => eps
+            problem.addConstraint(new Constraint.Linear(Arrays.asList(
+                    new Pair<>(1d, segments.get(f).right.name), 
+                    new Pair<>(-1d, segments.get(f).left.name)), 
+                    Constraint.Comparison.GREATER_THAN_OR_EQUAL, 
+                    settings.minimumSeparation));
+            // f.top - f.bottom => eps
+            problem.addConstraint(new Constraint.Linear(Arrays.asList(
+                    new Pair<>(1d, segments.get(f).top.name), 
+                    new Pair<>(-1d, segments.get(f).bottom.name)), 
+                    Constraint.Comparison.GREATER_THAN_OR_EQUAL, 
+                    settings.minimumSeparation));
+        }
+    }
+
+    private static void addAdjacencyConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
+        
+    }
+
+    private static void addAspectRatioConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
+        
+    }
+
+    private static void addAreaConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
+        
     }
 
     private SubdivisionToBilinearProblem() {

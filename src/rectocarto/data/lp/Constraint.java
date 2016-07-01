@@ -38,7 +38,7 @@ public abstract class Constraint {
             terms = new ArrayList<>();
         }
         
-        public Linear(Comparison op, double rightHandSide, List<Pair<Double,String>> terms) {
+        public Linear(List<Pair<Double,String>> terms, Comparison op, double rightHandSide) {
             super(op, rightHandSide);
             this.terms = new ArrayList<>(terms);
         }
@@ -147,7 +147,7 @@ public abstract class Constraint {
                 }
             }
             
-            return new Linear(getComparison(), newRightHandSide, newLinearTerms);
+            return new Linear(newLinearTerms, getComparison(), newRightHandSide);
         }
 
         @Override
