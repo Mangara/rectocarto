@@ -165,7 +165,7 @@ public abstract class Constraint {
                     sb.append(" + ").append(term.getFirst());
                 }
                 
-                sb.append(" ").append(term.getSecond()).append(" ");
+                sb.append(" ").append(term.getSecond());
             }
             
             for (Pair<Double, Pair<String, String>> term : bilinearTerms) {
@@ -173,15 +173,15 @@ public abstract class Constraint {
                     sb.append(term.getFirst());
                     first = false;
                 } else if (term.getFirst() < 0) {
-                    sb.append("- ").append(Double.toString(-1 * term.getFirst()));
+                    sb.append(" - ").append(Double.toString(-1 * term.getFirst()));
                 } else {
-                    sb.append("+ ").append(term.getFirst());
+                    sb.append(" + ").append(term.getFirst());
                 }
                 
-                sb.append(" ").append(term.getSecond().getFirst()).append(" * ").append(term.getSecond().getSecond()).append(" ");
+                sb.append(" ").append(term.getSecond().getFirst()).append(" * ").append(term.getSecond().getSecond());
             }
             
-            sb.append(getComparison()).append(" ").append(Double.toString(getRightHandSide()));
+            sb.append(" ").append(getComparison()).append(" ").append(Double.toString(getRightHandSide()));
             
             return sb.toString();
         }

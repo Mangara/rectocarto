@@ -15,9 +15,14 @@
  */
 package rectocarto.algos.lp;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import rectangularcartogram.algos.RELFusy;
 import rectangularcartogram.data.Pair;
 import rectangularcartogram.data.RegularEdgeLabeling;
 import rectangularcartogram.data.graph.Edge;
@@ -25,6 +30,7 @@ import rectangularcartogram.data.graph.Graph;
 import rectocarto.data.CartogramSettings;
 import rectangularcartogram.data.subdivision.Subdivision;
 import rectangularcartogram.data.subdivision.SubdivisionFace;
+import rectangularcartogram.exceptions.IncorrectGraphException;
 import rectocarto.data.lp.Constraint;
 import rectocarto.data.lp.MinimizationProblem;
 import rectocarto.data.lp.ObjectiveFunction;
@@ -43,6 +49,8 @@ public class SubdivisionToBilinearProblem {
      * @return
      */
     public static MinimizationProblem constructProblem(Subdivision sub, CartogramSettings settings) {
+        checkForIssues(sub, settings);
+        
         Map<SubdivisionFace, FaceSegments> segments = identifySegments(sub);
         MinimizationProblem problem = new MinimizationProblem();
 
@@ -57,6 +65,12 @@ public class SubdivisionToBilinearProblem {
         return problem;
     }
 
+    private static void checkForIssues(Subdivision sub, CartogramSettings settings) {
+        if (sub.getDualGraph().getRegularEdgeLabeling() == null) {
+            throw new IllegalArgumentException("The subdivision must have a valid regular edge labeling.");
+        }
+    }
+    
     private static Map<SubdivisionFace, FaceSegments> identifySegments(Subdivision sub) {
         // Create all segments
         Map<SubdivisionFace, FaceSegments> segments = new HashMap<>(2 * sub.getFaces().size());
@@ -188,18 +202,24 @@ public class SubdivisionToBilinearProblem {
     
     private static void addPlanarityConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
         for (SubdivisionFace f : sub.getTopLevelFaces()) {
+            if ("NORTH".equals(f.getName()) || "EAST".equals(f.getName()) || "SOUTH".equals(f.getName()) || "WEST".equals(f.getName())) {
+                continue;
+            }
+            
+            double sep = (f.isSea() ? settings.minimumSeaDimension : settings.minimumSeparation);
+            
             // f.right - f.left => eps
             problem.addConstraint(new Constraint.Linear(Arrays.asList(
                     new Pair<>(1d, segments.get(f).right.name), 
                     new Pair<>(-1d, segments.get(f).left.name)), 
                     Constraint.Comparison.GREATER_THAN_OR_EQUAL, 
-                    settings.minimumSeparation));
+                    sep));
             // f.top - f.bottom => eps
             problem.addConstraint(new Constraint.Linear(Arrays.asList(
                     new Pair<>(1d, segments.get(f).top.name), 
                     new Pair<>(-1d, segments.get(f).bottom.name)), 
                     Constraint.Comparison.GREATER_THAN_OR_EQUAL, 
-                    settings.minimumSeparation));
+                    sep));
         }
     }
 
@@ -216,5 +236,16 @@ public class SubdivisionToBilinearProblem {
     }
 
     private SubdivisionToBilinearProblem() {
+    }
+    
+    //// DEBUG ////
+    public static void main(String[] args) throws IOException, IncorrectGraphException {
+        Subdivision sub;
+        try (BufferedReader in = Files.newBufferedReader(Paths.get("exampleData/Subdivisions/Simple.sub"))) {
+            sub = Subdivision.load(in);
+            (new RELFusy()).computeREL(sub.getDualGraph());
+            MinimizationProblem p = constructProblem(sub, new CartogramSettings());
+            System.out.println(p);
+        }
     }
 }
