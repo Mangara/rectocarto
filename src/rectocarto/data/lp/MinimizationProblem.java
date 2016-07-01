@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MinimizationProblem {
-    
+
     private ObjectiveFunction objective;
     private final List<Constraint> constraints;
 
@@ -38,8 +38,29 @@ public class MinimizationProblem {
     public List<Constraint> getConstraints() {
         return constraints;
     }
-    
+
     public void addConstraint(Constraint c) {
         constraints.add(c);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+
+        if (objective != null) {
+            sb.append("Minimize ").append(objective.toString()).append('\n');
+        }
+
+        if (!constraints.isEmpty()) {
+            sb.append("Such that ");
+            
+            for (Constraint c : constraints) {
+                sb.append(c.toString()).append("\n          ");
+            }
+        } else {
+            sb.append("With no constraints.");
+        }
+        
+        return sb.toString();
     }
 }
