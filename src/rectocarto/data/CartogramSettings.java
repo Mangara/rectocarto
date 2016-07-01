@@ -20,4 +20,10 @@ public class CartogramSettings {
     public double minimumSeparation = 2;
     public double width = 1000;
     public double height = 750;
+    
+    public Objective objective = Objective.AVERAGE_ERROR_SQUARED;
+    
+    public enum Objective {
+        MAX_ERROR, AVERAGE_ERROR, MAX_AND_AVERAGE_ERROR, AVERAGE_ERROR_SQUARED, MAX_AND_AVERAGE_ERROR_SQUARED
+    }
 }

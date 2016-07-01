@@ -17,10 +17,13 @@ package rectocarto.data.lp;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import rectangularcartogram.data.Pair;
 
-public class ObjectiveFunction {
-    public class Linear {
+public interface ObjectiveFunction {
+    public abstract double evaluate(Map<String,Double> variableAssignment);
+    
+    public class Linear implements ObjectiveFunction {
         private final List<Pair<Double,String>> terms;
 
         public Linear() {
@@ -34,9 +37,20 @@ public class ObjectiveFunction {
         public List<Pair<Double, String>> getTerms() {
             return terms;
         }
+
+        @Override
+        public double evaluate(Map<String, Double> variableAssignment) {
+            double result = 0;
+            
+            for (Pair<Double, String> term : terms) {
+                result += term.getFirst() * variableAssignment.get(term.getSecond());
+            }
+            
+            return result;
+        }
     }
     
-    public class Quadratic {
+    public class Quadratic implements ObjectiveFunction {
         private final List<Pair<Double,String>> linearTerms;
         private final List<Pair<Double,String>> quadraticTerms;
 
@@ -59,6 +73,22 @@ public class ObjectiveFunction {
 
         public void addQuadraticTerm(double factor, String variable) {
             quadraticTerms.add(new Pair<>(factor, variable));
+        }
+
+        @Override
+        public double evaluate(Map<String, Double> variableAssignment) {
+            double result = 0;
+            
+            for (Pair<Double, String> term : linearTerms) {
+                result += term.getFirst() * variableAssignment.get(term.getSecond());
+            }
+            
+            for (Pair<Double, String> term : quadraticTerms) {
+                double val = variableAssignment.get(term.getSecond());
+                result += term.getFirst() * val * val;
+            }
+            
+            return result;
         }
     }
 }
