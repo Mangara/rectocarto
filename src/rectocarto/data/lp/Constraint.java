@@ -75,14 +75,20 @@ public abstract class Constraint {
         }
     }
     
-    public static class BiLinear extends Constraint {
+    public static class Bilinear extends Constraint {
         private final List<Pair<Double,String>> linearTerms;
         private final List<Pair<Double,Pair<String,String>>> bilinearTerms;
 
-        public BiLinear(Comparison op, double rightHandSide) {
+        public Bilinear(Comparison op, double rightHandSide) {
             super(op, rightHandSide);
             linearTerms = new ArrayList<>();
             bilinearTerms = new ArrayList<>();
+        }
+        
+        public Bilinear(List<Pair<Double,String>> linearTerms, List<Pair<Double,Pair<String,String>>> bilinearTerms, Comparison op, double rightHandSide) {
+            super(op, rightHandSide);
+            this.linearTerms = new ArrayList<>(linearTerms);
+            this.bilinearTerms = new ArrayList<>(bilinearTerms);
         }
 
         public List<Pair<Double, String>> getLinearTerms() {

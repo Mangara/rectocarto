@@ -54,7 +54,7 @@ public class ConstraintTest {
     public void testRestrictBilinearToLinear() {
         System.out.println("restrictToLinear");
 
-        Constraint.BiLinear bilinear = new Constraint.BiLinear(Constraint.Comparison.EQUAL, 2);
+        Constraint.Bilinear bilinear = new Constraint.Bilinear(Constraint.Comparison.EQUAL, 2);
         bilinear.addLinearTerm(3, "x");
         bilinear.addLinearTerm(-5, "y");
         bilinear.addLinearTerm(7, "z");

@@ -56,11 +56,12 @@ public class SubdivisionToBilinearProblem {
 
         problem.setObjective(buildObjectiveFunction(sub, settings));
 
-        addBoundaryConstraints(problem, segments, sub, settings);
         addPlanarityConstraints(problem, segments, sub, settings);
         addAdjacencyConstraints(problem, segments, sub, settings);
         addAspectRatioConstraints(problem, segments, sub, settings);
         addAreaConstraints(problem, segments, sub, settings);
+        
+        problem = ProblemReduction.substituteFixedVariables(problem);
         
         return problem;
     }
@@ -167,28 +168,44 @@ public class SubdivisionToBilinearProblem {
                 return lin;
             case AVERAGE_ERROR:
                 lin = new ObjectiveFunction.Linear();
-                for (int i = 0; i < sub.getTopLevelFaces().size(); i++) {
-                    lin.addTerm(1, "E_" + i);
+                int count = 0;
+                for (SubdivisionFace f : sub.getTopLevelFaces()) {
+                    if (!f.isBoundary() && !f.isSea()) {
+                        lin.addTerm(1, "E_" + count + "_" + f.getName());
+                    }
+                    count++;
                 }
                 return lin;
             case MAX_AND_AVERAGE_ERROR:
                 lin = new ObjectiveFunction.Linear();
                 lin.addTerm(sub.getTopLevelFaces().size(), "E_MAX");
-                for (int i = 0; i < sub.getTopLevelFaces().size(); i++) {
-                    lin.addTerm(1, "E_" + i);
+                count = 0;
+                for (SubdivisionFace f : sub.getTopLevelFaces()) {
+                    if (!f.isBoundary() && !f.isSea()) {
+                        lin.addTerm(1, "E_" + count + "_" + f.getName());
+                    }
+                    count++;
                 }
                 return lin;
             case AVERAGE_ERROR_SQUARED:
                 quad = new ObjectiveFunction.Quadratic();
-                for (int i = 0; i < sub.getTopLevelFaces().size(); i++) {
-                    quad.addQuadraticTerm(1, "E_" + i);
+                count = 0;
+                for (SubdivisionFace f : sub.getTopLevelFaces()) {
+                    if (!f.isBoundary() && !f.isSea()) {
+                        quad.addQuadraticTerm(1, "E_" + count + "_" + f.getName());
+                    }
+                    count++;
                 }
                 return quad;
             case MAX_AND_AVERAGE_ERROR_SQUARED:
                 quad = new ObjectiveFunction.Quadratic();
                 quad.addLinearTerm(sub.getTopLevelFaces().size(), "E_MAX");
-                for (int i = 0; i < sub.getTopLevelFaces().size(); i++) {
-                    quad.addQuadraticTerm(1, "E_" + i);
+                count = 0;
+                for (SubdivisionFace f : sub.getTopLevelFaces()) {
+                    if (!f.isBoundary() && !f.isSea()) {
+                        quad.addQuadraticTerm(1, "E_" + count + "_" + f.getName());
+                    }
+                    count++;
                 }
                 return quad;
             default:
@@ -196,13 +213,45 @@ public class SubdivisionToBilinearProblem {
         }
     }
     
-    private static void addBoundaryConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
-        
+    private static void addBoundaryConstraint(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, SubdivisionFace face, CartogramSettings settings) {
+        switch (face.getName()) {
+            case "NORTH":
+                // bottom = cartogramHeight
+                problem.addConstraint(new Constraint.Linear(Arrays.asList(
+                    new Pair<>(1d, segments.get(face).bottom.name)), 
+                    Constraint.Comparison.EQUAL, 
+                    settings.cartogramHeight));
+                break;
+            case "EAST":
+                // left = cartogramWidth
+                problem.addConstraint(new Constraint.Linear(Arrays.asList(
+                    new Pair<>(1d, segments.get(face).left.name)), 
+                    Constraint.Comparison.EQUAL, 
+                    settings.cartogramWidth));
+                break;
+            case "SOUTH":
+                // top = 0
+                problem.addConstraint(new Constraint.Linear(Arrays.asList(
+                    new Pair<>(1d, segments.get(face).top.name)), 
+                    Constraint.Comparison.EQUAL, 
+                    0));
+                break;
+            case "WEST":
+                // right = 0
+                problem.addConstraint(new Constraint.Linear(Arrays.asList(
+                    new Pair<>(1d, segments.get(face).right.name)), 
+                    Constraint.Comparison.EQUAL, 
+                    0));
+                break;
+            default:
+                throw new IllegalArgumentException("Unexpected boundary region name: " + face.getName());
+        }
     }
     
     private static void addPlanarityConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
         for (SubdivisionFace f : sub.getTopLevelFaces()) {
-            if ("NORTH".equals(f.getName()) || "EAST".equals(f.getName()) || "SOUTH".equals(f.getName()) || "WEST".equals(f.getName())) {
+            if (f.isBoundary()) {
+                addBoundaryConstraint(problem, segments, f, settings);
                 continue;
             }
             

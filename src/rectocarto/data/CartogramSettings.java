@@ -16,10 +16,11 @@
 package rectocarto.data;
 
 public class CartogramSettings {
+    public double boundaryWidth = 30;
     public double minimumSeaDimension = 10;
     public double minimumSeparation = 2;
-    public double width = 1000;
-    public double height = 750;
+    public double cartogramWidth = 1000;
+    public double cartogramHeight = 750;
     
     public Objective objective = Objective.AVERAGE_ERROR_SQUARED;
     
