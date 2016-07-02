@@ -34,6 +34,8 @@ public class ProblemReduction {
      * Simplifies a given problem by (iteratively) finding all equality
      * constraints in one variable and substituting the solution into other
      * constraints that reference that variable.
+     * 
+     * Assumes that the problem is satisfiable!
      *
      * @param problem
      * @return
@@ -185,5 +187,8 @@ public class ProblemReduction {
         } else {
             throw new IllegalArgumentException("Unexpected constraint type: " + constraint);
         }
+    }
+
+    private ProblemReduction() {
     }
 }
