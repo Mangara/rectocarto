@@ -36,6 +36,7 @@ public class SubdivisionFace {
     private double area;
     private Vertex correspondingVertex;
     private boolean sea;
+    private boolean boundary;
     private List<SubdivisionFace> neighbours;
     private double cartographicError; // Signed cartographic error of this region. Only non-zero if this region is part of a rectangular cartogram. Set by CartogramMaker.
     // Constants
@@ -50,6 +51,7 @@ public class SubdivisionFace {
         this.name = name;
         this.weight = weight;
         this.sea = sea;
+        this.boundary = boundary;
 
         if (sea && !boundary) {
             this.color = SEA_COLOR;
@@ -81,6 +83,14 @@ public class SubdivisionFace {
 
     public void setSea(boolean sea) {
         this.sea = sea;
+    }
+
+    public boolean isBoundary() {
+        return boundary;
+    }
+
+    public void setBoundary(boolean boundary) {
+        this.boundary = boundary;
     }
 
     public String getName() {

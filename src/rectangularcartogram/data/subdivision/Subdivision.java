@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map.Entry;
 import rectangularcartogram.data.Pair;
@@ -36,14 +37,14 @@ public class Subdivision {
 
     private ArrayList<SubdivisionFace> faces;
     private Graph dualGraph;
-    private HashMap<Vertex, SubdivisionFace> faceMap;
+    private LinkedHashMap<Vertex, SubdivisionFace> faceMap;
     private int cartogramWidth; // The width a cartogram of this subdivision should have
     private int cartogramHeight; // The height a cartogram of this subdivision should have
 
     public Subdivision() {
         faces = new ArrayList<SubdivisionFace>();
         dualGraph = null;
-        faceMap = new HashMap<Vertex, SubdivisionFace>();
+        faceMap = new LinkedHashMap<Vertex, SubdivisionFace>();
     }
 
     public Subdivision(Graph subdivision) throws LowDegreeVertexException {
@@ -284,7 +285,7 @@ public class Subdivision {
         }
 
         faces = new ArrayList<SubdivisionFace>(dcel.getFaces().size());
-        faceMap = new HashMap<Vertex, SubdivisionFace>(2 * dcel.getFaces().size());
+        faceMap = new LinkedHashMap<Vertex, SubdivisionFace>(2 * dcel.getFaces().size());
 
         for (Face face : dcel.getFaces()) {
             if (face.isOuterFace()) {
@@ -325,6 +326,11 @@ public class Subdivision {
         SubdivisionFace west = faceMap.get(dualGraph.getVW());
 
         if (north != null) {
+            north.setBoundary(true);
+            east.setBoundary(true);
+            south.setBoundary(true);
+            west.setBoundary(true);
+            
             // These should be treated as sea regions
             north.setSea(true);
             east.setSea(true);
@@ -535,7 +541,7 @@ public class Subdivision {
         result.setDualGraph(Graph.load(in));
 
         // reconstruct face mapping
-        result.faceMap = new HashMap<Vertex, SubdivisionFace>(nFaces);
+        result.faceMap = new LinkedHashMap<Vertex, SubdivisionFace>(nFaces);
 
         double precision = 0.0000001;
 
