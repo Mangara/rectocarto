@@ -16,13 +16,14 @@
 package rectocarto.data;
 
 public class CartogramSettings {
+    public double cartogramWidth = 1000;
+    public double cartogramHeight = 750;
     public double boundaryWidth = 30;
     public double minimumSeaDimension = 10;
     public double minimumSeparation = 2;
-    public double cartogramWidth = 1000;
-    public double cartogramHeight = 750;
+    public double maximumAspectRatio = 10;
     
-    public Objective objective = Objective.AVERAGE_ERROR_SQUARED;
+    public Objective objective = Objective.MAX_AND_AVERAGE_ERROR;
     
     public enum Objective {
         MAX_ERROR, AVERAGE_ERROR, MAX_AND_AVERAGE_ERROR, AVERAGE_ERROR_SQUARED, MAX_AND_AVERAGE_ERROR_SQUARED

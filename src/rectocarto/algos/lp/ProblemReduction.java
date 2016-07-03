@@ -34,7 +34,7 @@ public class ProblemReduction {
      * Simplifies a given problem by (iteratively) finding all equality
      * constraints in one variable and substituting the solution into other
      * constraints that reference that variable.
-     * 
+     *
      * Assumes that the problem is satisfiable!
      *
      * @param problem
@@ -172,11 +172,19 @@ public class ProblemReduction {
                     if (fixedValues.containsKey(term.getSecond().getSecond())) {
                         newRightHand -= term.getFirst() * fixedValues.get(term.getSecond().getFirst()) * fixedValues.get(term.getSecond().getSecond());
                     } else {
-                        newLinearTerms.add(new Pair<>(term.getFirst() * fixedValues.get(term.getSecond().getFirst()), term.getSecond().getSecond()));
+                        double val = fixedValues.get(term.getSecond().getFirst());
+
+                        if (val != 0) {
+                            newLinearTerms.add(new Pair<>(term.getFirst() * val, term.getSecond().getSecond()));
+                        }
                     }
                 } else {
                     if (fixedValues.containsKey(term.getSecond().getSecond())) {
-                        newLinearTerms.add(new Pair<>(term.getFirst() * fixedValues.get(term.getSecond().getSecond()), term.getSecond().getFirst()));
+                        double val = fixedValues.get(term.getSecond().getSecond());
+
+                        if (val != 0) {
+                            newLinearTerms.add(new Pair<>(term.getFirst() * val, term.getSecond().getFirst()));
+                        }
                     } else {
                         newBilinearTerms.add(new Pair<>(term.getFirst(), new Pair<>(term.getSecond().getFirst(), term.getSecond().getSecond())));
                     }
