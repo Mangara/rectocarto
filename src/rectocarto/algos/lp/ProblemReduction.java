@@ -19,16 +19,28 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import rectangularcartogram.data.Pair;
 import rectocarto.data.lp.Constraint;
 import rectocarto.data.lp.MinimizationProblem;
 import rectocarto.data.lp.ObjectiveFunction;
 
-/**
- *
- * @author Sander Verdonschot <sander.verdonschot at gmail.com>
- */
 public class ProblemReduction {
+
+    /**
+     * Leaves one unique copy of each constraint.
+     *
+     * @param problem
+     * @return
+     */
+    public static MinimizationProblem removeDuplicateConstraints(MinimizationProblem problem) {
+        List<Constraint> uniqueConstraints = problem.getConstraints().stream().distinct().collect(Collectors.toList());
+        
+        MinimizationProblem result = new MinimizationProblem();
+        result.setObjective(problem.getObjective());
+        result.getConstraints().addAll(uniqueConstraints);
+        return result;
+    }
 
     /**
      * Simplifies a given problem by (iteratively) finding all equality

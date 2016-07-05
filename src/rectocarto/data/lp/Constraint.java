@@ -18,6 +18,7 @@ package rectocarto.data.lp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import rectangularcartogram.data.Pair;
 
 public abstract class Constraint {
@@ -29,16 +30,43 @@ public abstract class Constraint {
         this.comparison = op;
         this.rightHandSide = rightHandSide;
     }
-    
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 79 * hash + Objects.hashCode(this.comparison);
+        hash = 79 * hash + (int) (Double.doubleToLongBits(this.rightHandSide) ^ (Double.doubleToLongBits(this.rightHandSide) >>> 32));
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final Constraint other = (Constraint) obj;
+        if (this.comparison != other.comparison) {
+            return false;
+        }
+        if (Double.doubleToLongBits(this.rightHandSide) != Double.doubleToLongBits(other.rightHandSide)) {
+            return false;
+        }
+        return true;
+    }
+
     public static class Linear extends Constraint {
-        private final List<Pair<Double,String>> terms;
+
+        private final List<Pair<Double, String>> terms;
 
         public Linear(Comparison op, double rightHandSide) {
             super(op, rightHandSide);
             terms = new ArrayList<>();
         }
-        
-        public Linear(List<Pair<Double,String>> terms, Comparison op, double rightHandSide) {
+
+        public Linear(List<Pair<Double, String>> terms, Comparison op, double rightHandSide) {
             super(op, rightHandSide);
             this.terms = new ArrayList<>(terms);
         }
@@ -46,7 +74,7 @@ public abstract class Constraint {
         public List<Pair<Double, String>> getTerms() {
             return terms;
         }
-        
+
         public void addTerm(double factor, String variable) {
             terms.add(new Pair<>(factor, variable));
         }
@@ -55,7 +83,7 @@ public abstract class Constraint {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             boolean first = true;
-            
+
             for (Pair<Double, String> term : terms) {
                 if (first) {
                     sb.append(term.getFirst());
@@ -65,27 +93,58 @@ public abstract class Constraint {
                 } else {
                     sb.append("+ ").append(term.getFirst());
                 }
-                
+
                 sb.append(" ").append(term.getSecond()).append(" ");
             }
-            
+
             sb.append(getComparison()).append(" ").append(Double.toString(getRightHandSide()));
-            
+
             return sb.toString();
         }
+
+        @Override
+        public int hashCode() {
+            int hash = 7;
+            hash = 67 * hash + Objects.hashCode(this.terms);
+            hash = 67 * hash + Objects.hashCode(getComparison());
+            hash = 67 * hash + (int) (Double.doubleToLongBits(getRightHandSide()) ^ (Double.doubleToLongBits(getRightHandSide()) >>> 32));
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final Linear other = (Linear) obj;
+            if (!Objects.equals(this.terms, other.terms)) {
+                return false;
+            }
+            if (this.getComparison() != other.getComparison()) {
+                return false;
+            }
+            if (Double.doubleToLongBits(this.getRightHandSide()) != Double.doubleToLongBits(other.getRightHandSide())) {
+                return false;
+            }
+            return true;
+        }
     }
-    
+
     public static class Bilinear extends Constraint {
-        private final List<Pair<Double,String>> linearTerms;
-        private final List<Pair<Double,Pair<String,String>>> bilinearTerms;
+
+        private final List<Pair<Double, String>> linearTerms;
+        private final List<Pair<Double, Pair<String, String>>> bilinearTerms;
 
         public Bilinear(Comparison op, double rightHandSide) {
             super(op, rightHandSide);
             linearTerms = new ArrayList<>();
             bilinearTerms = new ArrayList<>();
         }
-        
-        public Bilinear(List<Pair<Double,String>> linearTerms, List<Pair<Double,Pair<String,String>>> bilinearTerms, Comparison op, double rightHandSide) {
+
+        public Bilinear(List<Pair<Double, String>> linearTerms, List<Pair<Double, Pair<String, String>>> bilinearTerms, Comparison op, double rightHandSide) {
             super(op, rightHandSide);
             this.linearTerms = new ArrayList<>(linearTerms);
             this.bilinearTerms = new ArrayList<>(bilinearTerms);
@@ -94,7 +153,7 @@ public abstract class Constraint {
         public List<Pair<Double, String>> getLinearTerms() {
             return linearTerms;
         }
-        
+
         public void addLinearTerm(double factor, String variable) {
             linearTerms.add(new Pair<>(factor, variable));
         }
@@ -102,15 +161,15 @@ public abstract class Constraint {
         public List<Pair<Double, Pair<String, String>>> getBilinearTerms() {
             return bilinearTerms;
         }
-        
+
         public void addBilinearTerm(double factor, String variable1, String variable2) {
             bilinearTerms.add(new Pair<>(factor, new Pair<>(variable1, variable2)));
         }
-        
-        public Linear restrictToLinear(Map<String,Double> variableAssignment) {
+
+        public Linear restrictToLinear(Map<String, Double> variableAssignment) {
             double newRightHandSide = getRightHandSide();
-            List<Pair<Double,String>> newLinearTerms = new ArrayList<>();
-            
+            List<Pair<Double, String>> newLinearTerms = new ArrayList<>();
+
             for (Pair<Double, String> linearTerm : linearTerms) {
                 if (variableAssignment.containsKey(linearTerm.getSecond())) {
                     newRightHandSide -= linearTerm.getFirst() * variableAssignment.get(linearTerm.getSecond());
@@ -118,12 +177,12 @@ public abstract class Constraint {
                     newLinearTerms.add(new Pair<>(linearTerm.getFirst(), linearTerm.getSecond()));
                 }
             }
-            
+
             for (Pair<Double, Pair<String, String>> bilinearTerm : bilinearTerms) {
                 String var1 = bilinearTerm.getSecond().getFirst();
                 String var2 = bilinearTerm.getSecond().getSecond();
-                Pair<Double,String> newTerm = null;
-                
+                Pair<Double, String> newTerm = null;
+
                 if (variableAssignment.containsKey(var1)) {
                     if (variableAssignment.containsKey(var2)) {
                         newRightHandSide -= bilinearTerm.getFirst() * variableAssignment.get(var1) * variableAssignment.get(var2);
@@ -135,10 +194,10 @@ public abstract class Constraint {
                 } else {
                     throw new IllegalArgumentException("The variable assignment must contain values for at least one of the variables of each bilinear term.");
                 }
-                
+
                 if (newTerm != null) {
                     boolean found = false;
-                    
+
                     for (Pair<Double, String> newLinearTerm : newLinearTerms) {
                         if (newLinearTerm.getSecond().equals(newTerm.getSecond())) {
                             newLinearTerm.setFirst(newLinearTerm.getFirst() + newTerm.getFirst());
@@ -146,13 +205,13 @@ public abstract class Constraint {
                             break;
                         }
                     }
-                    
+
                     if (!found) {
                         newLinearTerms.add(newTerm);
                     }
                 }
             }
-            
+
             return new Linear(newLinearTerms, getComparison(), newRightHandSide);
         }
 
@@ -160,7 +219,7 @@ public abstract class Constraint {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             boolean first = true;
-            
+
             for (Pair<Double, String> term : linearTerms) {
                 if (first) {
                     sb.append(term.getFirst());
@@ -170,10 +229,10 @@ public abstract class Constraint {
                 } else {
                     sb.append(" + ").append(term.getFirst());
                 }
-                
+
                 sb.append(" ").append(term.getSecond());
             }
-            
+
             for (Pair<Double, Pair<String, String>> term : bilinearTerms) {
                 if (first) {
                     sb.append(term.getFirst());
@@ -183,13 +242,47 @@ public abstract class Constraint {
                 } else {
                     sb.append(" + ").append(term.getFirst());
                 }
-                
+
                 sb.append(" ").append(term.getSecond().getFirst()).append(" * ").append(term.getSecond().getSecond());
             }
-            
+
             sb.append(" ").append(getComparison()).append(" ").append(Double.toString(getRightHandSide()));
-            
+
             return sb.toString();
+        }
+        
+        @Override
+        public int hashCode() {
+            int hash = 7;
+            hash = 67 * hash + Objects.hashCode(this.linearTerms);
+            hash = 67 * hash + Objects.hashCode(this.bilinearTerms);
+            hash = 67 * hash + Objects.hashCode(getComparison());
+            hash = 67 * hash + (int) (Double.doubleToLongBits(getRightHandSide()) ^ (Double.doubleToLongBits(getRightHandSide()) >>> 32));
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final Bilinear other = (Bilinear) obj;
+            if (!Objects.equals(this.linearTerms, other.linearTerms)) {
+                return false;
+            }
+            if (!Objects.equals(this.bilinearTerms, other.bilinearTerms)) {
+                return false;
+            }
+            if (this.getComparison() != other.getComparison()) {
+                return false;
+            }
+            if (Double.doubleToLongBits(this.getRightHandSide()) != Double.doubleToLongBits(other.getRightHandSide())) {
+                return false;
+            }
+            return true;
         }
     }
 
@@ -200,7 +293,7 @@ public abstract class Constraint {
     public double getRightHandSide() {
         return rightHandSide;
     }
-    
+
     public enum Comparison {
 
         EQUAL, LESS_THAN_OR_EQUAL, GREATER_THAN_OR_EQUAL;

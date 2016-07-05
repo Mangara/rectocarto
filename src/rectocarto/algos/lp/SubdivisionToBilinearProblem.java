@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import rectangularcartogram.algos.RELFusy;
@@ -32,6 +31,7 @@ import rectocarto.data.CartogramSettings;
 import rectangularcartogram.data.subdivision.Subdivision;
 import rectangularcartogram.data.subdivision.SubdivisionFace;
 import rectangularcartogram.exceptions.IncorrectGraphException;
+import rectocarto.algos.lp.SegmentIdentification.FaceSegments;
 import rectocarto.data.lp.Constraint;
 import rectocarto.data.lp.MinimizationProblem;
 import rectocarto.data.lp.ObjectiveFunction;
@@ -54,7 +54,7 @@ public class SubdivisionToBilinearProblem {
     public static MinimizationProblem constructProblem(Subdivision sub, CartogramSettings settings) {
         checkForIssues(sub, settings);
 
-        Map<SubdivisionFace, FaceSegments> segments = identifySegments(sub);
+        Map<SubdivisionFace, FaceSegments> segments = SegmentIdentification.identifySegments(sub);
         MinimizationProblem problem = new MinimizationProblem();
 
         problem.setObjective(buildObjectiveFunction(sub, settings));
@@ -65,6 +65,7 @@ public class SubdivisionToBilinearProblem {
         addAreaConstraints(problem, segments, sub, settings);
 
         problem = ProblemReduction.substituteFixedVariables(problem);
+        problem = ProblemReduction.removeDuplicateConstraints(problem);
 
         return problem;
     }
@@ -79,91 +80,6 @@ public class SubdivisionToBilinearProblem {
                 if (f.getWeight() <= 0) {
                     throw new IllegalArgumentException("All regions must have positive weight.");
                 }
-            }
-        }
-    }
-
-    private static Map<SubdivisionFace, FaceSegments> identifySegments(Subdivision sub) {
-        // Create all segments
-        Map<SubdivisionFace, FaceSegments> segments = new HashMap<>(2 * sub.getFaces().size());
-        int count = 0;
-
-        for (SubdivisionFace face : sub.getTopLevelFaces()) {
-            FaceSegments s = new FaceSegments();
-            s.left = new Segment("v" + count);
-            s.right = new Segment("v" + (count + 1));
-            s.bottom = new Segment("h" + count);
-            s.top = new Segment("h" + (count + 1));
-            segments.put(face, s);
-            count += 2;
-        }
-
-        // Run union-find to eliminate duplicates
-        RegularEdgeLabeling rel = sub.getDualGraph().getRegularEdgeLabeling();
-        for (Edge edge : sub.getDualGraph().getEdges()) {
-            Pair<Graph.Labeling, Edge.Direction> label = rel.get(edge);
-
-            if (label.getFirst() == Graph.Labeling.BLUE) { // Horizontal
-                SubdivisionFace leftFace = sub.getFace(edge.getOrigin());
-                SubdivisionFace rightFace = sub.getFace(edge.getDestination());
-                segments.get(leftFace).right.merge(segments.get(rightFace).left);
-            } else if (label.getFirst() == Graph.Labeling.RED) { // Vertical
-                SubdivisionFace bottomFace = sub.getFace(edge.getOrigin());
-                SubdivisionFace topFace = sub.getFace(edge.getDestination());
-                segments.get(bottomFace).top.merge(segments.get(topFace).bottom);
-            }
-        }
-
-        // Update the segment mapping
-        for (SubdivisionFace face : sub.getTopLevelFaces()) {
-            FaceSegments s = segments.get(face);
-            s.left = s.left.findRepresentative();
-            s.right = s.right.findRepresentative();
-            s.bottom = s.bottom.findRepresentative();
-            s.top = s.top.findRepresentative();
-        }
-
-        return segments;
-    }
-
-    private static class FaceSegments {
-
-        Segment left, top, right, bottom;
-    }
-
-    private static class Segment {
-
-        String name;
-        Segment parent = this;
-        int rank = 0;
-
-        Segment(String name) {
-            this.name = name;
-        }
-
-        public Segment findRepresentative() {
-            if (parent != this) {
-                parent = parent.findRepresentative();
-            }
-
-            return parent;
-        }
-
-        public void merge(Segment other) {
-            Segment rep1 = findRepresentative();
-            Segment rep2 = other.findRepresentative();
-
-            if (rep1 == rep2) {
-                return;
-            }
-
-            if (rep1.rank < rep2.rank) {
-                rep1.parent = rep2;
-            } else if (rep1.rank > rep2.rank) {
-                rep2.parent = rep1;
-            } else {
-                rep1.parent = rep2;
-                rep2.rank++;
             }
         }
     }
@@ -289,34 +205,75 @@ public class SubdivisionToBilinearProblem {
     }
 
     private static void addAdjacencyConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
+        RegularEdgeLabeling rel = sub.getDualGraph().getRegularEdgeLabeling();
 
+        for (Edge edge : sub.getDualGraph().getEdges()) {
+            Pair<Graph.Labeling, Edge.Direction> label = rel.get(edge);
+
+            if (label.getFirst() == Graph.Labeling.NONE) {
+                continue;
+            }
+
+            SubdivisionFace fromFace = sub.getFace(edge.getOrigin());
+            SubdivisionFace toFace = sub.getFace(edge.getDestination());
+
+            if (fromFace.isBoundary() || toFace.isBoundary()) {
+                continue;
+            }
+
+            if (label.getFirst() == Graph.Labeling.BLUE) { // Horizontal; left-to-right
+                // bottom <= top for both combinations
+                problem.addConstraint(new Constraint.Linear(Arrays.asList(
+                        new Pair<>(1d, segments.get(fromFace).top.name),
+                        new Pair<>(-1d, segments.get(toFace).bottom.name)),
+                        Constraint.Comparison.GREATER_THAN_OR_EQUAL,
+                        settings.minimumSeparation));
+                problem.addConstraint(new Constraint.Linear(Arrays.asList(
+                        new Pair<>(1d, segments.get(toFace).top.name),
+                        new Pair<>(-1d, segments.get(fromFace).bottom.name)),
+                        Constraint.Comparison.GREATER_THAN_OR_EQUAL,
+                        settings.minimumSeparation));
+            } else if (label.getFirst() == Graph.Labeling.RED) { // Vertical; bottom-to-top
+                // left <= right for both combinations
+                problem.addConstraint(new Constraint.Linear(Arrays.asList(
+                        new Pair<>(1d, segments.get(toFace).right.name),
+                        new Pair<>(-1d, segments.get(fromFace).left.name)),
+                        Constraint.Comparison.GREATER_THAN_OR_EQUAL,
+                        settings.minimumSeparation));
+                problem.addConstraint(new Constraint.Linear(Arrays.asList(
+                        new Pair<>(1d, segments.get(fromFace).right.name),
+                        new Pair<>(-1d, segments.get(toFace).left.name)),
+                        Constraint.Comparison.GREATER_THAN_OR_EQUAL,
+                        settings.minimumSeparation));
+            }
+        }
     }
 
     private static void addAspectRatioConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
         for (SubdivisionFace f : sub.getTopLevelFaces()) {
             if (!f.isBoundary() && !f.isSea()) {
                 FaceSegments segs = segments.get(f);
-                
+
                 //     (right - left)/(top - bottom) <= maximumAR
                 // or: right - left <= maximumAR * (top - bottom)
                 // or: right - left - maximumAR * top + maximumAR * bottom <= 0
                 problem.addConstraint(new Constraint.Linear(Arrays.asList(
-                    new Pair<>(1d, segs.right.name),
-                    new Pair<>(-1d, segs.left.name),
-                    new Pair<>(-settings.maximumAspectRatio, segs.top.name),
-                    new Pair<>(settings.maximumAspectRatio, segs.bottom.name)),
-                    Constraint.Comparison.LESS_THAN_OR_EQUAL,
-                    0));
-                
+                        new Pair<>(1d, segs.right.name),
+                        new Pair<>(-1d, segs.left.name),
+                        new Pair<>(-settings.maximumAspectRatio, segs.top.name),
+                        new Pair<>(settings.maximumAspectRatio, segs.bottom.name)),
+                        Constraint.Comparison.LESS_THAN_OR_EQUAL,
+                        0));
+
                 //     (top - bottom)/(right - left) <= maximumAR
                 // or: top - bottom - maximumAR * right + maximumAR * left <= 0
                 problem.addConstraint(new Constraint.Linear(Arrays.asList(
-                    new Pair<>(1d, segs.top.name),
-                    new Pair<>(-1d, segs.bottom.name),
-                    new Pair<>(-settings.maximumAspectRatio, segs.right.name),
-                    new Pair<>(settings.maximumAspectRatio, segs.left.name)),
-                    Constraint.Comparison.LESS_THAN_OR_EQUAL,
-                    0));
+                        new Pair<>(1d, segs.top.name),
+                        new Pair<>(-1d, segs.bottom.name),
+                        new Pair<>(-settings.maximumAspectRatio, segs.right.name),
+                        new Pair<>(settings.maximumAspectRatio, segs.left.name)),
+                        Constraint.Comparison.LESS_THAN_OR_EQUAL,
+                        0));
             }
         }
     }
@@ -390,6 +347,7 @@ public class SubdivisionToBilinearProblem {
             (new RELFusy()).computeREL(sub.getDualGraph());
             MinimizationProblem p = constructProblem(sub, new CartogramSettings());
             System.out.println(p);
+            System.out.println(p.getConstraints().size() + " constraints");
         }
     }
 }
