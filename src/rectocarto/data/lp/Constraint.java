@@ -61,20 +61,46 @@ public abstract class Constraint {
 
         private final List<Pair<Double, String>> terms;
 
+        /**
+         * Creates a new linear constraint of the form: "0 op rightHandSide".
+         *
+         * @param op
+         * @param rightHandSide
+         */
         public Linear(Comparison op, double rightHandSide) {
             super(op, rightHandSide);
             terms = new ArrayList<>();
         }
 
+        /**
+         * Creates a new linear constraint of the form: "terms op
+         * rightHandSide".
+         *
+         * @param terms
+         * @param op
+         * @param rightHandSide
+         */
         public Linear(List<Pair<Double, String>> terms, Comparison op, double rightHandSide) {
             super(op, rightHandSide);
             this.terms = new ArrayList<>(terms);
         }
 
+        /**
+         * Returns the actual list of terms. Changes made to this list will be
+         * reflected in the constraint.
+         *
+         * @return
+         */
         public List<Pair<Double, String>> getTerms() {
             return terms;
         }
 
+        /**
+         * Add the term "factor * variable" to the left hand side.
+         *
+         * @param factor
+         * @param variable
+         */
         public void addTerm(double factor, String variable) {
             terms.add(new Pair<>(factor, variable));
         }
@@ -138,34 +164,87 @@ public abstract class Constraint {
         private final List<Pair<Double, String>> linearTerms;
         private final List<Pair<Double, Pair<String, String>>> bilinearTerms;
 
+        /**
+         * Creates a new bilinear constraint of the form "0 op rightHandSide".
+         *
+         * @param op
+         * @param rightHandSide
+         */
         public Bilinear(Comparison op, double rightHandSide) {
             super(op, rightHandSide);
             linearTerms = new ArrayList<>();
             bilinearTerms = new ArrayList<>();
         }
 
+        /**
+         * Creates a new bilinear constraint of the form "linearTerms +
+         * bilinearTerms op rightHandSide".
+         *
+         * @param linearTerms
+         * @param bilinearTerms
+         * @param op
+         * @param rightHandSide
+         */
         public Bilinear(List<Pair<Double, String>> linearTerms, List<Pair<Double, Pair<String, String>>> bilinearTerms, Comparison op, double rightHandSide) {
             super(op, rightHandSide);
             this.linearTerms = new ArrayList<>(linearTerms);
             this.bilinearTerms = new ArrayList<>(bilinearTerms);
         }
 
+        /**
+         * Returns the actual list of linear terms. Changes made to this list
+         * will be reflected in the constraint.
+         *
+         * @return
+         */
         public List<Pair<Double, String>> getLinearTerms() {
             return linearTerms;
         }
 
+        /**
+         * Adds a term of the form "factor * variable" to the left hand side.
+         *
+         * @param factor
+         * @param variable
+         */
         public void addLinearTerm(double factor, String variable) {
             linearTerms.add(new Pair<>(factor, variable));
         }
 
+        /**
+         * Returns the actual list of bilinear terms. Changes made to this list
+         * will be reflected in the constraint.
+         *
+         * @return
+         */
         public List<Pair<Double, Pair<String, String>>> getBilinearTerms() {
             return bilinearTerms;
         }
 
+        /**
+         * Adds a term of the form "factor * variable1 * variable2" to the left
+         * hand side.
+         *
+         * @param factor
+         * @param variable1
+         * @param variable2
+         */
         public void addBilinearTerm(double factor, String variable1, String variable2) {
             bilinearTerms.add(new Pair<>(factor, new Pair<>(variable1, variable2)));
         }
 
+        /**
+         * Converts this bilinear constraint to a linear constraint by
+         * substituting the given values for their variables. The caller should
+         * ensure that the variable assignment includes at least one variable
+         * from each bilinear term. Bilinear terms that simplify to linear terms
+         * in the same variable are collected.
+         *
+         * @param variableAssignment
+         * @return
+         * @throws IllegalArgumentException If there is a bilinear term, both of
+         * whose variables are not in the variable assignment.
+         */
         public Linear restrictToLinear(Map<String, Double> variableAssignment) {
             double newRightHandSide = getRightHandSide();
             List<Pair<Double, String>> newLinearTerms = new ArrayList<>();
@@ -250,7 +329,7 @@ public abstract class Constraint {
 
             return sb.toString();
         }
-        
+
         @Override
         public int hashCode() {
             int hash = 7;
