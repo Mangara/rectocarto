@@ -233,67 +233,6 @@ public abstract class Constraint {
             bilinearTerms.add(new Pair<>(factor, new Pair<>(variable1, variable2)));
         }
 
-        /**
-         * Converts this bilinear constraint to a linear constraint by
-         * substituting the given values for their variables. The caller should
-         * ensure that the variable assignment includes at least one variable
-         * from each bilinear term. Bilinear terms that simplify to linear terms
-         * in the same variable are collected.
-         *
-         * @param variableAssignment
-         * @return
-         * @throws IllegalArgumentException If there is a bilinear term, both of
-         * whose variables are not in the variable assignment.
-         */
-        public Linear restrictToLinear(Map<String, Double> variableAssignment) {
-            double newRightHandSide = getRightHandSide();
-            List<Pair<Double, String>> newLinearTerms = new ArrayList<>();
-
-            for (Pair<Double, String> linearTerm : linearTerms) {
-                if (variableAssignment.containsKey(linearTerm.getSecond())) {
-                    newRightHandSide -= linearTerm.getFirst() * variableAssignment.get(linearTerm.getSecond());
-                } else {
-                    newLinearTerms.add(new Pair<>(linearTerm.getFirst(), linearTerm.getSecond()));
-                }
-            }
-
-            for (Pair<Double, Pair<String, String>> bilinearTerm : bilinearTerms) {
-                String var1 = bilinearTerm.getSecond().getFirst();
-                String var2 = bilinearTerm.getSecond().getSecond();
-                Pair<Double, String> newTerm = null;
-
-                if (variableAssignment.containsKey(var1)) {
-                    if (variableAssignment.containsKey(var2)) {
-                        newRightHandSide -= bilinearTerm.getFirst() * variableAssignment.get(var1) * variableAssignment.get(var2);
-                    } else {
-                        newTerm = new Pair<>(bilinearTerm.getFirst() * variableAssignment.get(var1), var2);
-                    }
-                } else if (variableAssignment.containsKey(var2)) {
-                    newTerm = new Pair<>(bilinearTerm.getFirst() * variableAssignment.get(var2), var1);
-                } else {
-                    throw new IllegalArgumentException("The variable assignment must contain values for at least one of the variables of each bilinear term.");
-                }
-
-                if (newTerm != null) {
-                    boolean found = false;
-
-                    for (Pair<Double, String> newLinearTerm : newLinearTerms) {
-                        if (newLinearTerm.getSecond().equals(newTerm.getSecond())) {
-                            newLinearTerm.setFirst(newLinearTerm.getFirst() + newTerm.getFirst());
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found) {
-                        newLinearTerms.add(newTerm);
-                    }
-                }
-            }
-
-            return new Linear(newLinearTerms, getComparison(), newRightHandSide);
-        }
-
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
