@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rectocarto.data.lp;
+package rectocarto.algos.lp.solver;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,35 +24,42 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
+import rectocarto.data.lp.Constraint;
+import rectocarto.data.lp.MinimizationProblem;
+import rectocarto.data.lp.Solution;
 
 /**
  *
  * @author Sander Verdonschot <sander.verdonschot at gmail.com>
  */
-public class ConstraintTest {
-
-    public ConstraintTest() {
+public class IteratedLinearSolverTest {
+    
+    public IteratedLinearSolverTest() {
     }
-
+    
     @BeforeClass
     public static void setUpClass() {
     }
-
+    
     @AfterClass
     public static void tearDownClass() {
     }
-
+    
     @Before
     public void setUp() {
     }
-
+    
     @After
     public void tearDown() {
     }
 
+    /**
+     * Test of restrictToLinear method, of class IteratedLinearSolver.
+     */
     @Test
-    public void testRestrictBilinearToLinear() {
+    public void testRestrictToLinear() {
         System.out.println("restrictToLinear");
+        IteratedLinearSolver solver = new IteratedLinearSolver(null);
 
         Constraint.Bilinear bilinear = new Constraint.Bilinear(Constraint.Comparison.EQUAL, 2);
         bilinear.addLinearTerm(3, "x");
@@ -61,16 +68,16 @@ public class ConstraintTest {
         bilinear.addBilinearTerm(11, "x", "y");
 
         try {
-            bilinear.restrictToLinear(Collections.EMPTY_MAP);
+            solver.restrictToLinear(bilinear, Collections.EMPTY_MAP);
             fail("No exception thrown when not all bilinear terms reduced.");
         } catch (IllegalArgumentException iae) {
             // Expected
         }
 
-        assertEquals("248.0 y + 7.0 z = -67.0", bilinear.restrictToLinear(Collections.singletonMap("x", 23.0)).toString());
-        assertEquals("300.0 x + 7.0 z = 137.0", bilinear.restrictToLinear(Collections.singletonMap("y", 27.0)).toString());
+        assertEquals("248.0 y + 7.0 z = -67.0", solver.restrictToLinear(bilinear, Collections.singletonMap("x", 23.0)).toString());
+        assertEquals("300.0 x + 7.0 z = 137.0", solver.restrictToLinear(bilinear, Collections.singletonMap("y", 27.0)).toString());
         try {
-            bilinear.restrictToLinear(Collections.singletonMap("z", 1.0));
+            solver.restrictToLinear(bilinear, Collections.singletonMap("z", 1.0));
             fail("No exception thrown when not all bilinear terms reduced.");
         } catch (IllegalArgumentException iae) {
             // Expected
@@ -79,37 +86,37 @@ public class ConstraintTest {
         bilinear.addBilinearTerm(13, "x", "z");
         bilinear.addBilinearTerm(-17, "y", "z");
 
-        assertEquals("-153.0 z = -6763.0", bilinear.restrictToLinear(mapOf("x", 23, "y", 27)).toString());
-        assertEquals("-211.0 y = -8329.0", bilinear.restrictToLinear(mapOf("x", 23, "z", 27)).toString());
-        assertEquals("607.0 x = 10485.0", bilinear.restrictToLinear(mapOf("y", 23, "z", 27)).toString());
+        assertEquals("-153.0 z = -6763.0", solver.restrictToLinear(bilinear, mapOf("x", 23, "y", 27)).toString());
+        assertEquals("-211.0 y = -8329.0", solver.restrictToLinear(bilinear, mapOf("x", 23, "z", 27)).toString());
+        assertEquals("607.0 x = 10485.0", solver.restrictToLinear(bilinear, mapOf("y", 23, "z", 27)).toString());
 
         try {
-            bilinear.restrictToLinear(Collections.singletonMap("x", 1.0));
+            solver.restrictToLinear(bilinear, Collections.singletonMap("x", 1.0));
             fail("No exception thrown when not all bilinear terms reduced.");
         } catch (IllegalArgumentException iae) {
             // Expected
         }
 
         try {
-            bilinear.restrictToLinear(Collections.singletonMap("y", 1.0));
+            solver.restrictToLinear(bilinear, Collections.singletonMap("y", 1.0));
             fail("No exception thrown when not all bilinear terms reduced.");
         } catch (IllegalArgumentException iae) {
             // Expected
         }
 
         try {
-            bilinear.restrictToLinear(Collections.singletonMap("z", 1.0));
+            solver.restrictToLinear(bilinear, Collections.singletonMap("z", 1.0));
             fail("No exception thrown when not all bilinear terms reduced.");
         } catch (IllegalArgumentException iae) {
             // Expected
         }
     }
-
+    
     private Map<String, Double> mapOf(String var1, double val1, String var2, double val2) {
         Map<String, Double> map = new HashMap<>();
         map.put(var1, val1);
         map.put(var2, val2);
         return map;
     }
-
+    
 }

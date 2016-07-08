@@ -97,7 +97,7 @@ public class IteratedLinearSolver implements BilinearSolver {
      * @throws IllegalArgumentException If there is a bilinear term, both of
      * whose variables are not in the variable assignment.
      */
-    public Constraint.Linear restrictToLinear(Constraint.Bilinear constraint, Map<String, Double> variableAssignment) {
+    Constraint.Linear restrictToLinear(Constraint.Bilinear constraint, Map<String, Double> variableAssignment) {
         double newRightHandSide = constraint.getRightHandSide();
         List<Pair<Double, String>> newLinearTerms = new ArrayList<>();
 
