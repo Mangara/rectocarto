@@ -27,18 +27,34 @@ public class MinimizationProblem {
         constraints = new ArrayList<>();
     }
 
+    /**
+     * Returns the function to be minimized.
+     *
+     * @return
+     */
     public ObjectiveFunction getObjective() {
         return objective;
     }
 
+    /**
+     * Sets the function to be minimized.
+     *
+     * @param objective
+     */
     public void setObjective(ObjectiveFunction objective) {
         this.objective = objective;
     }
 
+    /**
+     * Returns the actual list of constraints. Changes to this list will be
+     * reflected in the problem.
+     *
+     * @return
+     */
     public List<Constraint> getConstraints() {
         return constraints;
     }
-
+    
     public void addConstraint(Constraint c) {
         constraints.add(c);
     }
@@ -53,14 +69,14 @@ public class MinimizationProblem {
 
         if (!constraints.isEmpty()) {
             sb.append("Such that ");
-            
+
             for (Constraint c : constraints) {
                 sb.append(c.toString()).append("\n          ");
             }
         } else {
             sb.append("With no constraints.");
         }
-        
+
         return sb.toString();
     }
 }
