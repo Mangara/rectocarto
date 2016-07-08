@@ -21,19 +21,42 @@ import java.util.Map;
 import rectangularcartogram.data.Pair;
 
 public interface ObjectiveFunction {
-    public abstract double evaluate(Map<String,Double> variableAssignment);
-    
+
+    /**
+     * Computes the value of this objective function with the given values for
+     * each variable.
+     *
+     * @param variableAssignment
+     * @return
+     * @throws NullPointerException if the given variable assignment does not
+     * contain a value for one of the variables in this function.
+     */
+    public abstract double evaluate(Map<String, Double> variableAssignment);
+
     public class Linear implements ObjectiveFunction {
-        private final List<Pair<Double,String>> terms;
+
+        private final List<Pair<Double, String>> terms;
 
         public Linear() {
             terms = new ArrayList<>();
         }
-        
+
+        /**
+         * Adds a term of the form "factor * variable".
+         *
+         * @param factor
+         * @param variable
+         */
         public void addTerm(double factor, String variable) {
             terms.add(new Pair<>(factor, variable));
         }
 
+        /**
+         * Returns the actual list of terms. Changes to this list are reflected
+         * in the function.
+         *
+         * @return
+         */
         public List<Pair<Double, String>> getTerms() {
             return terms;
         }
@@ -41,19 +64,19 @@ public interface ObjectiveFunction {
         @Override
         public double evaluate(Map<String, Double> variableAssignment) {
             double result = 0;
-            
+
             for (Pair<Double, String> term : terms) {
                 result += term.getFirst() * variableAssignment.get(term.getSecond());
             }
-            
+
             return result;
         }
-        
+
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
             boolean first = true;
-            
+
             for (Pair<Double, String> term : terms) {
                 if (first) {
                     sb.append(term.getFirst());
@@ -63,35 +86,59 @@ public interface ObjectiveFunction {
                 } else {
                     sb.append(" + ").append(term.getFirst());
                 }
-                
+
                 sb.append(" ").append(term.getSecond());
             }
-            
+
             return sb.toString();
         }
     }
-    
+
     public class Quadratic implements ObjectiveFunction {
-        private final List<Pair<Double,String>> linearTerms;
-        private final List<Pair<Double,String>> quadraticTerms;
+
+        private final List<Pair<Double, String>> linearTerms;
+        private final List<Pair<Double, String>> quadraticTerms;
 
         public Quadratic() {
             linearTerms = new ArrayList<>();
             quadraticTerms = new ArrayList<>();
         }
-        
+
+        /**
+         * Returns the actual list of linear terms. Changes to this list are
+         * reflected in the function.
+         *
+         * @return
+         */
         public List<Pair<Double, String>> getLinearTerms() {
             return linearTerms;
         }
-        
+
+        /**
+         * Adds a term of the form "factor * variable".
+         *
+         * @param factor
+         * @param variable
+         */
         public void addLinearTerm(double factor, String variable) {
             linearTerms.add(new Pair<>(factor, variable));
         }
 
+        /**
+         * Returns the actual list of quadratic terms. Changes to this list are
+         * reflected in the function.
+         *
+         * @return
+         */
         public List<Pair<Double, String>> getQuadraticTerms() {
             return quadraticTerms;
         }
 
+        /**
+         * Adds a term of the form "factor * variable^2"
+         * @param factor
+         * @param variable 
+         */
         public void addQuadraticTerm(double factor, String variable) {
             quadraticTerms.add(new Pair<>(factor, variable));
         }
@@ -99,24 +146,24 @@ public interface ObjectiveFunction {
         @Override
         public double evaluate(Map<String, Double> variableAssignment) {
             double result = 0;
-            
+
             for (Pair<Double, String> term : linearTerms) {
                 result += term.getFirst() * variableAssignment.get(term.getSecond());
             }
-            
+
             for (Pair<Double, String> term : quadraticTerms) {
                 double val = variableAssignment.get(term.getSecond());
                 result += term.getFirst() * val * val;
             }
-            
+
             return result;
         }
-        
+
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
             boolean first = true;
-            
+
             for (Pair<Double, String> term : linearTerms) {
                 if (first) {
                     sb.append(term.getFirst());
@@ -126,10 +173,10 @@ public interface ObjectiveFunction {
                 } else {
                     sb.append(" + ").append(term.getFirst());
                 }
-                
+
                 sb.append(" ").append(term.getSecond());
             }
-            
+
             for (Pair<Double, String> term : quadraticTerms) {
                 if (first) {
                     sb.append(term.getFirst());
@@ -139,10 +186,10 @@ public interface ObjectiveFunction {
                 } else {
                     sb.append(" + ").append(term.getFirst());
                 }
-                
+
                 sb.append(" ").append(term.getSecond()).append("^2");
             }
-            
+
             return sb.toString();
         }
     }
