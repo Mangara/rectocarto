@@ -16,15 +16,17 @@
 package rectocarto.algos.lp.solver;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import rectangularcartogram.data.Pair;
 import rectocarto.data.lp.Constraint;
 import rectocarto.data.lp.MinimizationProblem;
 import rectocarto.data.lp.ObjectiveFunction;
 import rectocarto.data.lp.Solution;
 
-public class IteratedLinearSolver implements BilinearSolver {
+public class IteratedLinearSolver {
 
     private int nIterations = 50;
     private final LinearSolver solver;
@@ -46,30 +48,28 @@ public class IteratedLinearSolver implements BilinearSolver {
         this.nIterations = nIterations;
     }
 
-    @Override
-    public Solution solve(MinimizationProblem bilinearProgram) {
+    public Solution solve(MinimizationProblem bilinearProgram, Pair<Set<String>, Set<String>> variablePartition, Solution feasibleSolution) {
         if (bilinearProgram.getObjective() instanceof ObjectiveFunction.Quadratic && !(solver instanceof QuadraticSolver)) {
             throw new IllegalArgumentException("Quadratic program passed, while the underlying solver cannot solve quadratic programs.");
         }
 
-        for (int i = 0; i < nIterations; i++) {
-            // TODO!
-            // Fix half the variables
-            // Solve for the others
-            // Fix other half
-            // Solve again
-
-            Map<String, Double> variableAssignment = null;
-            MinimizationProblem lp = restrictToLinear(bilinearProgram, variableAssignment);
-            solver.solve(lp);
+        // Build a first partial solution from the feasible solution
+        Solution lastSolution = new Solution(feasibleSolution.getObjectiveValue());
+        for (String var : variablePartition.getFirst()) {
+            lastSolution.put(var, lastSolution.get(var));
         }
 
-        return null;
+        for (int i = 0; i < nIterations; i++) {
+            lastSolution = solver.solve(substituteVariables(bilinearProgram, lastSolution));
+            lastSolution = solver.solve(substituteVariables(bilinearProgram, lastSolution));
+        }
+
+        return lastSolution;
     }
 
-    private MinimizationProblem restrictToLinear(MinimizationProblem bilinearProgram, Map<String, Double> variableAssignment) {
+    private MinimizationProblem substituteVariables(MinimizationProblem bilinearProgram, Map<String, Double> variableAssignment) {
         MinimizationProblem linear = new MinimizationProblem();
-        linear.setObjective(bilinearProgram.getObjective());
+        linear.setObjective(substituteVariables(bilinearProgram.getObjective(), variableAssignment));
 
         for (Constraint c : bilinearProgram.getConstraints()) {
             if (c instanceof Constraint.Linear) {
@@ -82,6 +82,38 @@ public class IteratedLinearSolver implements BilinearSolver {
         }
 
         return linear;
+    }
+
+    private ObjectiveFunction substituteVariables(ObjectiveFunction objective, Map<String, Double> variableAssignment) {
+        if (objective instanceof ObjectiveFunction.Linear) {
+            ObjectiveFunction.Linear result = new ObjectiveFunction.Linear();
+
+            for (Pair<Double, String> term : ((ObjectiveFunction.Linear) objective).getTerms()) {
+                if (!variableAssignment.containsKey(term.getSecond())) { // If it does, this term is constant and does not need to be optimized
+                    result.addTerm(term.getFirst(), term.getSecond());
+                }
+            }
+
+            return result;
+        } else if (objective instanceof ObjectiveFunction.Quadratic) {
+            ObjectiveFunction.Quadratic result = new ObjectiveFunction.Quadratic();
+
+            for (Pair<Double, String> term : ((ObjectiveFunction.Quadratic) objective).getLinearTerms()) {
+                if (!variableAssignment.containsKey(term.getSecond())) { // If it does, this term is constant and does not need to be optimized
+                    result.addLinearTerm(term.getFirst(), term.getSecond());
+                }
+            }
+            
+            for (Pair<Double, String> term : ((ObjectiveFunction.Quadratic) objective).getQuadraticTerms()) {
+                if (!variableAssignment.containsKey(term.getSecond())) { // If it does, this term is constant and does not need to be optimized
+                    result.addQuadraticTerm(term.getFirst(), term.getSecond());
+                }
+            }
+            
+            return result;
+        } else {
+            throw new AssertionError("Unexpected objective function type: " + objective.getClass());
+        }
     }
 
     /**

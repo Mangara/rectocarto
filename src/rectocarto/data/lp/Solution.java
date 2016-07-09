@@ -18,10 +18,9 @@ package rectocarto.data.lp;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Solution {
+public class Solution extends HashMap<String, Double> {
 
     private final double objectiveValue;
-    private final Map<String, Double> bestAssignment;
 
     /**
      * Creates a new solution.
@@ -31,7 +30,6 @@ public class Solution {
      */
     public Solution(double objectiveValue) {
         this.objectiveValue = objectiveValue;
-        bestAssignment = new HashMap<>();
     }
 
     /**
@@ -39,11 +37,11 @@ public class Solution {
      *
      * @param objectiveValue the value of the objective function with this
      * solution.
-     * @param bestAssignment this solution's variable assignment.
+     * @param variableAssignment the variable assignment corresponding to this solution
      */
-    public Solution(double objectiveValue, Map<String, Double> bestAssignment) {
+    public Solution(double objectiveValue, Map<? extends String, ? extends Double> variableAssignment) {
+        super(variableAssignment);
         this.objectiveValue = objectiveValue;
-        this.bestAssignment = new HashMap<>(bestAssignment);
     }
 
     /**
@@ -55,22 +53,8 @@ public class Solution {
         return objectiveValue;
     }
 
-    /**
-     * Returns the variable assignment.
-     *
-     * @return
-     */
-    public Map<String, Double> getBestAssignment() {
-        return bestAssignment;
-    }
-
-    /**
-     * Sets the value of the given variable in this solution.
-     *
-     * @param variable
-     * @param value
-     */
-    public void addVariableAssignment(String variable, double value) {
-        bestAssignment.put(variable, value);
+    @Override
+    public Object clone() {
+        return super.clone(); //To change body of generated methods, choose Tools | Templates.
     }
 }
