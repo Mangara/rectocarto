@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import rectangularcartogram.algos.RELFusy;
+import rectangularcartogram.data.Pair;
 import rectangularcartogram.data.subdivision.Subdivision;
 import rectangularcartogram.exceptions.IncorrectGraphException;
 import rectocarto.algos.lp.SubdivisionToBilinearProblem;
@@ -35,12 +36,17 @@ public class Test {
         try (BufferedReader in = Files.newBufferedReader(Paths.get("exampleData/Subdivisions/Simple.sub"))) {
             sub = Subdivision.load(in);
             (new RELFusy()).computeREL(sub.getDualGraph());
-            MinimizationProblem p = SubdivisionToBilinearProblem.constructProblem(sub, new CartogramSettings());
+            
+            SubdivisionToBilinearProblem builder = new SubdivisionToBilinearProblem(sub, new CartogramSettings());
+            MinimizationProblem p = builder.getProblem();
             System.out.println(p);
             System.out.println(p.getConstraints().size() + " constraints");
+            System.out.println();
+            System.out.println("Feasible solution: ");
+            System.out.println(builder.getFeasibleSolution());
             
             IteratedLinearSolver solver = new IteratedLinearSolver(new CLPSolver());
-            //solver.solve(p);
+            solver.solve(p, new Pair<>(builder.getHorizontalSegmentVariables(), builder.getVerticalSegmentVariables()), builder.getFeasibleSolution());
         }
     }
 }

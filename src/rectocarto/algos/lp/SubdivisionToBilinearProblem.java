@@ -15,14 +15,12 @@
  */
 package rectocarto.algos.lp;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import rectangularcartogram.algos.RELFusy;
+import java.util.Set;
 import rectangularcartogram.data.Pair;
 import rectangularcartogram.data.RegularEdgeLabeling;
 import rectangularcartogram.data.graph.Edge;
@@ -30,47 +28,157 @@ import rectangularcartogram.data.graph.Graph;
 import rectocarto.data.CartogramSettings;
 import rectangularcartogram.data.subdivision.Subdivision;
 import rectangularcartogram.data.subdivision.SubdivisionFace;
-import rectangularcartogram.exceptions.IncorrectGraphException;
 import rectocarto.algos.lp.SegmentIdentification.FaceSegments;
 import rectocarto.data.lp.Constraint;
 import rectocarto.data.lp.MinimizationProblem;
 import rectocarto.data.lp.ObjectiveFunction;
+import rectocarto.data.lp.Solution;
 
 public class SubdivisionToBilinearProblem {
 
     private static final String MAX_ERROR_VARIABLE_NAME = "E_MAX";
 
+    // User-specified variables
+    private final Subdivision sub;
+    private final CartogramSettings settings;
+    // Variables used internally by the class
+    private MinimizationProblem problem;
+    private Map<SubdivisionFace, FaceSegments> segments;
+    private Solution feasibleSolution;
+
+    public SubdivisionToBilinearProblem(Subdivision sub, CartogramSettings settings) {
+        this.sub = sub;
+        this.settings = settings;
+    }
+
     /**
-     * Constructs the appropriate bilinear optimization problem for a given
-     * subdivision with these cartogram settings.
+     * Returns the bilinear optimization problem corresponding to the given
+     * subdivision.
      *
-     * TODO: handle child regions explicitly TODO: incorrect sea adjacencies
-     * TODO: incorrect adjacency level
-     *
-     * @param sub
-     * @param settings
      * @return
      */
-    public static MinimizationProblem constructProblem(Subdivision sub, CartogramSettings settings) {
-        checkForIssues(sub, settings);
-
-        Map<SubdivisionFace, FaceSegments> segments = SegmentIdentification.identifySegments(sub);
-        MinimizationProblem problem = new MinimizationProblem();
-
-        problem.setObjective(buildObjectiveFunction(sub, settings));
-
-        addPlanarityConstraints(problem, segments, sub, settings);
-        addAdjacencyConstraints(problem, segments, sub, settings);
-        addAspectRatioConstraints(problem, segments, sub, settings);
-        addAreaConstraints(problem, segments, sub, settings);
-
-        problem = ProblemReduction.substituteFixedVariables(problem);
-        problem = ProblemReduction.removeDuplicateConstraints(problem);
+    public MinimizationProblem getProblem() {
+        if (problem == null) {
+            constructProblem();
+        }
 
         return problem;
     }
 
-    private static void checkForIssues(Subdivision sub, CartogramSettings settings) {
+    /**
+     * Returns a feasible solution to the bilinear optimization problem.
+     *
+     * @return
+     */
+    public Solution getFeasibleSolution() {
+        if (feasibleSolution == null) {
+            if (problem == null) {
+                constructProblem();
+            }
+
+            constructFeasibleSolution();
+        }
+
+        return feasibleSolution;
+    }
+
+    /**
+     * Returns the set of variables representing horizontal segment positions.
+     *
+     * @return
+     */
+    public Set<String> getHorizontalSegmentVariables() {
+        if (problem == null) {
+            constructProblem();
+        }
+
+        Set<String> horizontal = new HashSet<>();
+
+        for (FaceSegments s : segments.values()) {
+            horizontal.add(s.bottom.name);
+            horizontal.add(s.top.name);
+        }
+
+        return horizontal;
+    }
+
+    /**
+     * Returns the set of variables representing vertical segment positions.
+     *
+     * @return
+     */
+    public Set<String> getVerticalSegmentVariables() {
+        if (problem == null) {
+            constructProblem();
+        }
+
+        Set<String> vertical = new HashSet<>();
+
+        for (FaceSegments s : segments.values()) {
+            vertical.add(s.left.name);
+            vertical.add(s.right.name);
+        }
+
+        return vertical;
+    }
+
+    /**
+     * Returns the set of variables representing cartographic errors.
+     *
+     * @return
+     */
+    public Set<String> getErrorVariables() {
+        if (problem == null) {
+            constructProblem();
+        }
+
+        Set<String> error = new HashSet<>();
+
+        int count = 0;
+        for (SubdivisionFace f : sub.getTopLevelFaces()) {
+            if (!f.isBoundary() && !f.isSea()) {
+                error.add(getErrorVariableName(f, count));
+            }
+            count++;
+        }
+
+        if (settings.objective == CartogramSettings.Objective.MAX_ERROR
+                || settings.objective == CartogramSettings.Objective.MAX_AND_AVERAGE_ERROR
+                || settings.objective == CartogramSettings.Objective.MAX_AND_AVERAGE_ERROR_SQUARED) {
+            error.add(MAX_ERROR_VARIABLE_NAME);
+        }
+
+        return error;
+    }
+
+    /**
+     * Constructs the appropriate bilinear optimization problem for a given
+     * subdivision with these cartogram settings.
+     *
+     * TODO: handle child regions explicitly
+     *
+     * TODO: incorrect sea adjacencies
+     *
+     * @return
+     */
+    private void constructProblem() {
+        checkForIssues();
+
+        segments = SegmentIdentification.identifySegments(sub);
+        problem = new MinimizationProblem();
+
+        problem.setObjective(buildObjectiveFunction());
+
+        addPlanarityConstraints();
+        addAdjacencyConstraints();
+        addAspectRatioConstraints();
+        addAreaConstraints();
+
+        problem = ProblemReduction.substituteFixedVariables(problem);
+        problem = ProblemReduction.removeDuplicateConstraints(problem);
+    }
+
+    private void checkForIssues() {
         if (sub.getDualGraph().getRegularEdgeLabeling() == null) {
             throw new IllegalArgumentException("The subdivision must have a valid regular edge labeling.");
         }
@@ -84,7 +192,7 @@ public class SubdivisionToBilinearProblem {
         }
     }
 
-    private static ObjectiveFunction buildObjectiveFunction(Subdivision sub, CartogramSettings settings) {
+    private ObjectiveFunction buildObjectiveFunction() {
         ObjectiveFunction.Linear lin;
         ObjectiveFunction.Quadratic quad;
 
@@ -144,7 +252,7 @@ public class SubdivisionToBilinearProblem {
         }
     }
 
-    private static void addBoundaryConstraint(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, SubdivisionFace face, CartogramSettings settings) {
+    private void addBoundaryConstraint(SubdivisionFace face) {
         switch (face.getName()) {
             case "NORTH":
                 // bottom = cartogramHeight
@@ -179,10 +287,10 @@ public class SubdivisionToBilinearProblem {
         }
     }
 
-    private static void addPlanarityConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
+    private void addPlanarityConstraints() {
         for (SubdivisionFace f : sub.getTopLevelFaces()) {
             if (f.isBoundary()) {
-                addBoundaryConstraint(problem, segments, f, settings);
+                addBoundaryConstraint(f);
                 continue;
             }
 
@@ -204,7 +312,7 @@ public class SubdivisionToBilinearProblem {
         }
     }
 
-    private static void addAdjacencyConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
+    private void addAdjacencyConstraints() {
         RegularEdgeLabeling rel = sub.getDualGraph().getRegularEdgeLabeling();
 
         for (Edge edge : sub.getDualGraph().getEdges()) {
@@ -249,7 +357,7 @@ public class SubdivisionToBilinearProblem {
         }
     }
 
-    private static void addAspectRatioConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
+    private void addAspectRatioConstraints() {
         for (SubdivisionFace f : sub.getTopLevelFaces()) {
             if (!f.isBoundary() && !f.isSea()) {
                 FaceSegments segs = segments.get(f);
@@ -278,7 +386,7 @@ public class SubdivisionToBilinearProblem {
         }
     }
 
-    private static void addAreaConstraints(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
+    private void addAreaConstraints() {
         // Count the total weight
         double totalWeight = sub.getTopLevelFaces().stream()
                 .filter(f -> !f.isBoundary() && !f.isSea())
@@ -336,6 +444,9 @@ public class SubdivisionToBilinearProblem {
         return "E_" + count + "_" + face.getName();
     }
 
-    private SubdivisionToBilinearProblem() {
+    private void constructFeasibleSolution() {
+        Map<String, Double> variables = new HashMap<>(2 * sub.getTopLevelFaces().size());
+
+        // toplogical sort on st-trees, incrementing by minimumSeparation or minimumSeaDimension
     }
 }
