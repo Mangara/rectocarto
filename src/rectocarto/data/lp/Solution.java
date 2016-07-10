@@ -20,6 +20,8 @@ import java.util.Map;
 
 public class Solution extends HashMap<String, Double> {
 
+    public static final Solution INFEASIBLE = new Solution(Double.NEGATIVE_INFINITY);
+
     private final double objectiveValue;
 
     /**
@@ -37,7 +39,8 @@ public class Solution extends HashMap<String, Double> {
      *
      * @param objectiveValue the value of the objective function with this
      * solution.
-     * @param variableAssignment the variable assignment corresponding to this solution
+     * @param variableAssignment the variable assignment corresponding to this
+     * solution
      */
     public Solution(double objectiveValue, Map<? extends String, ? extends Double> variableAssignment) {
         super(variableAssignment);
@@ -45,7 +48,9 @@ public class Solution extends HashMap<String, Double> {
     }
 
     /**
-     * Returns the value of the objective function.
+     * Returns the value of the objective function. If the program was
+     * infeasible, this will be Double.NEGATIVE_INFINITY. If it was unbounded,
+     * this will be Double.POSITIVE_INFINITY.
      *
      * @return
      */
@@ -53,6 +58,14 @@ public class Solution extends HashMap<String, Double> {
         return objectiveValue;
     }
 
+    public boolean isInfeasible() {
+        return objectiveValue == Double.NEGATIVE_INFINITY;
+    }
+    
+    public boolean isUnbounded() {
+        return objectiveValue == Double.POSITIVE_INFINITY;
+    }
+    
     @Override
     public Object clone() {
         return super.clone(); //To change body of generated methods, choose Tools | Templates.
