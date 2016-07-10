@@ -338,16 +338,4 @@ public class SubdivisionToBilinearProblem {
 
     private SubdivisionToBilinearProblem() {
     }
-
-    //// DEBUG ////
-    public static void main(String[] args) throws IOException, IncorrectGraphException {
-        Subdivision sub;
-        try (BufferedReader in = Files.newBufferedReader(Paths.get("exampleData/Subdivisions/Simple.sub"))) {
-            sub = Subdivision.load(in);
-            (new RELFusy()).computeREL(sub.getDualGraph());
-            MinimizationProblem p = constructProblem(sub, new CartogramSettings());
-            System.out.println(p);
-            System.out.println(p.getConstraints().size() + " constraints");
-        }
-    }
 }
