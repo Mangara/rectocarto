@@ -42,6 +42,15 @@ public interface ObjectiveFunction {
         }
 
         /**
+         * Creates a new objective function with the given terms.
+         *
+         * @param terms
+         */
+        public Linear(List<Pair<Double, String>> terms) {
+            this.terms = new ArrayList<>(terms);
+        }
+
+        /**
          * Adds a term of the form "factor * variable".
          *
          * @param factor
@@ -105,6 +114,17 @@ public interface ObjectiveFunction {
         }
 
         /**
+         * Creates a new quadratic objective function with the given terms.
+         *
+         * @param linearTerms
+         * @param quadraticTerms
+         */
+        public Quadratic(List<Pair<Double, String>> linearTerms, List<Pair<Double, String>> quadraticTerms) {
+            this.linearTerms = new ArrayList<>(linearTerms);
+            this.quadraticTerms = new ArrayList<>(quadraticTerms);
+        }
+
+        /**
          * Returns the actual list of linear terms. Changes to this list are
          * reflected in the function.
          *
@@ -136,8 +156,9 @@ public interface ObjectiveFunction {
 
         /**
          * Adds a term of the form "factor * variable^2"
+         *
          * @param factor
-         * @param variable 
+         * @param variable
          */
         public void addQuadraticTerm(double factor, String variable) {
             quadraticTerms.add(new Pair<>(factor, variable));
