@@ -41,6 +41,22 @@ public class SegmentIdentification {
             count += 2;
         }
 
+        // Add boundary constraints (necessary because these edges are unlabelled)
+        FaceSegments northSegments = segments.get(sub.getNorthFace());
+        FaceSegments eastSegments = segments.get(sub.getEastFace());
+        FaceSegments southSegments = segments.get(sub.getSouthFace());
+        FaceSegments westSegments = segments.get(sub.getWestFace());
+        
+        northSegments.left.merge(westSegments.right);
+        northSegments.right.merge(eastSegments.left);
+        northSegments.top.merge(westSegments.top);
+        northSegments.top.merge(eastSegments.top);
+        
+        southSegments.left.merge(westSegments.right);
+        southSegments.right.merge(eastSegments.left);
+        southSegments.bottom.merge(westSegments.bottom);
+        southSegments.bottom.merge(eastSegments.bottom);
+        
         // Run union-find to eliminate duplicates
         RegularEdgeLabeling rel = sub.getDualGraph().getRegularEdgeLabeling();
         for (Edge edge : sub.getDualGraph().getEdges()) {

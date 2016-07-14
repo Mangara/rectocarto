@@ -185,6 +185,22 @@ public class Subdivision {
     public HashMap<Vertex, SubdivisionFace> getFaceMap() {
         return faceMap;
     }
+    
+    public SubdivisionFace getNorthFace() {
+        return faceMap.get(dualGraph.getVN());
+    }
+    
+    public SubdivisionFace getSouthFace() {
+        return faceMap.get(dualGraph.getVS());
+    }
+    
+    public SubdivisionFace getEastFace() {
+        return faceMap.get(dualGraph.getVE());
+    }
+    
+    public SubdivisionFace getWestFace() {
+        return faceMap.get(dualGraph.getVW());
+    }
 
     public List<SubdivisionFace> getTopLevelNeighbours(SubdivisionFace face, boolean includeSea) {
         List<Vertex> neighbourVertices = face.getCorrespondingVertex().getNeighbours();
