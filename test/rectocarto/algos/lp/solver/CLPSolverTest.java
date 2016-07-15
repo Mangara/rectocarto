@@ -93,18 +93,18 @@ public class CLPSolverTest {
             x2 >= 1;
             x1 + 1.5 x2 >= 10;
         */
-        MinimizationProblem linearProgram = new MinimizationProblem();
-        linearProgram.setObjective(new ObjectiveFunction.Quadratic(Collections.EMPTY_LIST, Arrays.asList(new Pair<>(1d,"x1"), new Pair<>(1d,"x2"))));
-        linearProgram.addConstraint(new Constraint.Linear(Arrays.asList(new Pair<>(1d,"x1")), Constraint.Comparison.GREATER_THAN_OR_EQUAL, 1));
-        linearProgram.addConstraint(new Constraint.Linear(Arrays.asList(new Pair<>(1d,"x2")), Constraint.Comparison.GREATER_THAN_OR_EQUAL, 1));
-        linearProgram.addConstraint(new Constraint.Linear(Arrays.asList(new Pair<>(1d,"x1"), new Pair<>(1.5,"x2")), Constraint.Comparison.GREATER_THAN_OR_EQUAL, 10));
+        MinimizationProblem quadraticProgram = new MinimizationProblem();
+        quadraticProgram.setObjective(new ObjectiveFunction.Quadratic(Collections.EMPTY_LIST, Arrays.asList(new Pair<>(1d,"x1"), new Pair<>(1d,"x2"))));
+        quadraticProgram.addConstraint(new Constraint.Linear(Arrays.asList(new Pair<>(1d,"x1")), Constraint.Comparison.GREATER_THAN_OR_EQUAL, 1));
+        quadraticProgram.addConstraint(new Constraint.Linear(Arrays.asList(new Pair<>(1d,"x2")), Constraint.Comparison.GREATER_THAN_OR_EQUAL, 1));
+        quadraticProgram.addConstraint(new Constraint.Linear(Arrays.asList(new Pair<>(1d,"x1"), new Pair<>(1.5,"x2")), Constraint.Comparison.GREATER_THAN_OR_EQUAL, 10));
         
         Solution expResult = new Solution(2);
         expResult.put("x1", 4d);
         expResult.put("x2", 4d);
         
         CLPSolver instance = new CLPSolver();
-        Solution result = instance.solve(linearProgram);
+        Solution result = instance.solve(quadraticProgram);
         assertEquals(expResult, result);
     }
     
