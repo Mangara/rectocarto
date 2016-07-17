@@ -76,7 +76,7 @@ public class SubdivisionToBilinearProblem {
                 constructProblem();
             }
 
-            constructFeasibleSolution();
+            feasibleSolution = FeasibleSolutionBuilder.constructFeasibleSolution(sub, settings, problem, segments);
         }
 
         return feasibleSolution;
@@ -442,50 +442,5 @@ public class SubdivisionToBilinearProblem {
 
     private static String getErrorVariableName(SubdivisionFace face, int count) {
         return "E_" + count + "_" + face.getName();
-    }
-
-    private void constructFeasibleSolution() {
-        Map<String, Double> variables = new HashMap<>(2 * sub.getTopLevelFaces().size());
-
-        // toplogical sort on dual of st-graphs, incrementing by minimumSeparation or minimumSeaDimension
-        
-        scaleToCartogramSize(variables);
-
-        feasibleSolution = new Solution(problem.getObjective().evaluate(variables), variables);
-    }
-
-    private void scaleToCartogramSize(Map<String, Double> variables) {
-        double minX = Double.POSITIVE_INFINITY, maxX = Double.NEGATIVE_INFINITY, minY = Double.POSITIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
-
-        for (SubdivisionFace f : sub.getTopLevelFaces()) {
-            if (!f.isBoundary()) {
-                FaceSegments s = segments.get(f);
-                minX = Math.min(minX, variables.get(s.left.name));
-                maxX = Math.max(maxX, variables.get(s.right.name));
-                minY = Math.min(minY, variables.get(s.bottom.name));
-                maxY = Math.max(maxY, variables.get(s.top.name));
-            }
-        }
-
-        if (minX != settings.boundaryWidth || minY != settings.boundaryWidth) {
-            throw new InternalError("Minimum dimensions not equal to boundary width.");
-        }
-
-        if (maxX > settings.cartogramWidth - settings.boundaryWidth || maxY > settings.cartogramHeight - settings.boundaryWidth) {
-            throw new IllegalArgumentException("No cartogram can be constructed with these settings. Either increase the cartogram width and height or decrease the minimum separation.");
-        }
-
-        double xScale = (settings.cartogramWidth - 2 * settings.boundaryWidth) / (maxX - minX);
-        double yScale = (settings.cartogramHeight - 2 * settings.boundaryWidth) / (maxY - minY);
-        
-        for (SubdivisionFace f : sub.getTopLevelFaces()) {
-            if (!f.isBoundary()) {
-                FaceSegments s = segments.get(f);
-                variables.compute(s.left.name, (key, val) -> settings.boundaryWidth + xScale * val);
-                variables.compute(s.right.name, (key, val) -> settings.boundaryWidth + xScale * val);
-                variables.compute(s.bottom.name, (key, val) -> settings.boundaryWidth + yScale * val);
-                variables.compute(s.top.name, (key, val) -> settings.boundaryWidth + yScale * val);
-            }
-        }
     }
 }
