@@ -36,7 +36,7 @@ import rectocarto.data.lp.Solution;
 
 public class SubdivisionToBilinearProblem {
 
-    private static final String MAX_ERROR_VARIABLE_NAME = "E_MAX";
+    static final String MAX_ERROR_VARIABLE_NAME = "E_MAX";
 
     // User-specified variables
     private final Subdivision sub;
@@ -76,7 +76,7 @@ public class SubdivisionToBilinearProblem {
                 constructProblem();
             }
 
-            feasibleSolution = FeasibleSolutionBuilder.constructFeasibleSolution(sub, settings, problem, segments);
+            feasibleSolution = FeasibleSolutionBuilder.constructFeasibleSolution1(sub, settings, problem, segments);
         }
 
         return feasibleSolution;
