@@ -43,9 +43,9 @@ public class SubdivisionToBilinearProblem {
     private final CartogramSettings settings;
     // Variables used internally by the class
     private MinimizationProblem problem;
-    private Map<SubdivisionFace, FaceSegments> segments;
+    Map<SubdivisionFace, FaceSegments> segments; // DEBUG: non-oprivate for testing purposes TODO
     private Solution feasibleSolution;
-
+    
     public SubdivisionToBilinearProblem(Subdivision sub, CartogramSettings settings) {
         this.sub = sub;
         this.settings = settings;
@@ -295,7 +295,7 @@ public class SubdivisionToBilinearProblem {
             }
 
             FaceSegments segs = segments.get(f);
-            double sep = (f.isSea() ? settings.minimumSeaDimension : settings.minimumSeparation);
+            double sep = (f.isSea() ? Math.max(settings.minimumSeaDimension, settings.minimumFeatureSize) : settings.minimumFeatureSize);
 
             // f.right - f.left => eps
             problem.addConstraint(new Constraint.Linear(Arrays.asList(
@@ -335,24 +335,24 @@ public class SubdivisionToBilinearProblem {
                         new Pair<>(1d, segments.get(fromFace).top.name),
                         new Pair<>(-1d, segments.get(toFace).bottom.name)),
                         Constraint.Comparison.GREATER_THAN_OR_EQUAL,
-                        settings.minimumSeparation));
+                        settings.minimumFeatureSize));
                 problem.addConstraint(new Constraint.Linear(Arrays.asList(
                         new Pair<>(1d, segments.get(toFace).top.name),
                         new Pair<>(-1d, segments.get(fromFace).bottom.name)),
                         Constraint.Comparison.GREATER_THAN_OR_EQUAL,
-                        settings.minimumSeparation));
+                        settings.minimumFeatureSize));
             } else if (label.getFirst() == Graph.Labeling.RED) { // Vertical; bottom-to-top
                 // left <= right for both combinations
                 problem.addConstraint(new Constraint.Linear(Arrays.asList(
                         new Pair<>(1d, segments.get(toFace).right.name),
                         new Pair<>(-1d, segments.get(fromFace).left.name)),
                         Constraint.Comparison.GREATER_THAN_OR_EQUAL,
-                        settings.minimumSeparation));
+                        settings.minimumFeatureSize));
                 problem.addConstraint(new Constraint.Linear(Arrays.asList(
                         new Pair<>(1d, segments.get(fromFace).right.name),
                         new Pair<>(-1d, segments.get(toFace).left.name)),
                         Constraint.Comparison.GREATER_THAN_OR_EQUAL,
-                        settings.minimumSeparation));
+                        settings.minimumFeatureSize));
             }
         }
     }

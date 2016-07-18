@@ -18,6 +18,7 @@ package rectocarto.algos.lp;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import rectangularcartogram.algos.RectangularDualDrawer;
 import rectangularcartogram.data.Pair;
 import rectangularcartogram.data.graph.Vertex;
@@ -37,12 +38,13 @@ class FeasibleSolutionBuilder {
             Pair<Subdivision, Map<SubdivisionFace, SubdivisionFace>> dual = (new RectangularDualDrawer()).drawSubdivision(sub, true);
             Map<String, Double> variables = new HashMap<>(2 * sub.getTopLevelFaces().size());
 
-            for (SubdivisionFace face : dual.getFirst().getFaces()) {
-                FaceSegments s = segments.get(dual.getSecond().get(face));
-                variables.put(s.left.name, face.getVertices().stream().mapToDouble(Vertex::getX).min().getAsDouble());
-                variables.put(s.right.name, face.getVertices().stream().mapToDouble(Vertex::getX).max().getAsDouble());
-                variables.put(s.bottom.name, face.getVertices().stream().mapToDouble(Vertex::getY).min().getAsDouble());
-                variables.put(s.top.name, face.getVertices().stream().mapToDouble(Vertex::getY).max().getAsDouble());
+            for (SubdivisionFace face : sub.getTopLevelFaces()) {
+                FaceSegments s = segments.get(face);
+                List<Vertex> vertices = dual.getSecond().get(face).getVertices();
+                variables.put(s.left.name, vertices.stream().mapToDouble(Vertex::getX).min().getAsDouble());
+                variables.put(s.right.name, vertices.stream().mapToDouble(Vertex::getX).max().getAsDouble());
+                variables.put(s.bottom.name, vertices.stream().mapToDouble(Vertex::getY).min().getAsDouble());
+                variables.put(s.top.name, vertices.stream().mapToDouble(Vertex::getY).max().getAsDouble());
             }
 
             computeError(variables, settings, problem);
@@ -57,6 +59,10 @@ class FeasibleSolutionBuilder {
     static Solution constructFeasibleSolution2(Subdivision sub, CartogramSettings settings, MinimizationProblem problem, Map<SubdivisionFace, SegmentIdentification.FaceSegments> segments) {
         Map<String, Double> variables = new HashMap<>(2 * sub.getTopLevelFaces().size());
 
+        // Build a feasible solution for horizontal segments, then solve the remaining LP
+        // If this doesn't work, repeat for the vertical segments
+        // If both don't work, give up
+        
         // toplogical sort on dual of st-graphs, incrementing by minimumSeparation or minimumSeaDimension
         scaleToCartogramSize(sub, settings, segments, variables);
         computeError(variables, settings, problem);
@@ -107,13 +113,17 @@ class FeasibleSolutionBuilder {
                 Constraint.Bilinear areaConstraint = (Constraint.Bilinear) constraint;
                 List<Pair<Double, Pair<String, String>>> areaTerms = areaConstraint.getBilinearTerms();
                 String errorVar = areaConstraint.getLinearTerms().get(0).getSecond();
-                double desiredArea = areaConstraint.getRightHandSide();
+                double desiredArea = Math.abs(areaConstraint.getLinearTerms().get(0).getFirst()); // Not the right hand side - it might be affected by problem reduction techniques
 
                 double area = areaTerms.stream()
                         .mapToDouble(t -> t.getFirst() * variables.get(t.getSecond().getFirst()) * variables.get(t.getSecond().getSecond()))
                         .sum();
 
                 double error = Math.abs(area - desiredArea) / desiredArea + 0.01;
+                if (error <0) {
+                    System.out.println("ERROR < 0: " + area + " " + desiredArea + " " + error);
+                    System.out.println("Constraint: " + constraint);
+                }
                 variables.put(errorVar, error); // Increase to avoid infeasibility because of accuracy
                 
                 maxError = Math.max(maxError, error);

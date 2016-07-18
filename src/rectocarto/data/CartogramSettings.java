@@ -39,7 +39,7 @@ public class CartogramSettings {
      * If two regions are adjacent, they must share at least this much border.
      * This implicitly defines a minimum width and height for all regions.
      */
-    public double minimumSeparation = 2;
+    public double minimumFeatureSize = 2;
     /**
      * The maximum ratio between the height and width (and vice versa) of
      * non-sea regions.
