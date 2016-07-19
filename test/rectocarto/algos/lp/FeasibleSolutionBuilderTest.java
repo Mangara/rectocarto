@@ -103,7 +103,7 @@ public class FeasibleSolutionBuilderTest {
      */
     @Test
     public void testConstructFeasibleSolution1() throws IOException, IncorrectGraphException {
-        System.out.println("constructFeasibleSolution1 - old method");
+        System.out.println("constructFeasibleSolution1 - old method"); // 589 infeasible vs 133 feasible
 
         for (String map : maps) {
             try (BufferedReader in = Files.newBufferedReader(Paths.get(map))) {
@@ -116,9 +116,9 @@ public class FeasibleSolutionBuilderTest {
 
                     try {
                         Solution sol = FeasibleSolutionBuilder.constructFeasibleSolution1(sub, settings, problem, s2bp.segments);
-                        Subdivision cartogram = getCartogram(sub, sol, s2bp.segments);
-
-                        (new IPEExporter()).exportIPEFile(Paths.get("temp.sub").toFile(), cartogram, false);
+                        
+                        //Subdivision cartogram = getCartogram(sub, sol, s2bp.segments);
+                        //(new IPEExporter()).exportIPEFile(Paths.get("temp.sub").toFile(), cartogram, false);
 
                         if (!testFeasibility(sol, problem)) {
                             System.out.println("Infeasible.");
