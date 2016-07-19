@@ -15,10 +15,12 @@
  */
 package rectocarto.algos.lp;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
+import java.util.Set;
+import java.util.stream.Collectors;
 import rectangularcartogram.algos.RectangularDualDrawer;
 import rectangularcartogram.data.Pair;
 import rectangularcartogram.data.graph.Vertex;
@@ -47,6 +49,7 @@ class FeasibleSolutionBuilder {
                 variables.put(s.top.name, vertices.stream().mapToDouble(Vertex::getY).max().getAsDouble());
             }
 
+            scaleToCartogramSize(sub, settings, segments, variables);
             computeError(variables, settings, problem);
 
             return new Solution(problem.getObjective().evaluate(variables), variables);
@@ -62,7 +65,6 @@ class FeasibleSolutionBuilder {
         // Build a feasible solution for horizontal segments, then solve the remaining LP
         // If this doesn't work, repeat for the vertical segments
         // If both don't work, give up
-        
         // toplogical sort on dual of st-graphs, incrementing by minimumSeparation or minimumSeaDimension
         scaleToCartogramSize(sub, settings, segments, variables);
         computeError(variables, settings, problem);
@@ -83,31 +85,36 @@ class FeasibleSolutionBuilder {
             }
         }
 
-        if (minX != settings.boundaryWidth || minY != settings.boundaryWidth) {
-            throw new InternalError("Minimum dimensions not equal to boundary width.");
-        }
-
-        if (maxX > settings.cartogramWidth - settings.boundaryWidth || maxY > settings.cartogramHeight - settings.boundaryWidth) {
+        if (maxX - minX > settings.cartogramWidth || maxY - minY > settings.cartogramHeight) {
             throw new IllegalArgumentException("No cartogram can be constructed with these settings. Either increase the cartogram width and height or decrease the minimum separation.");
         }
 
-        double xScale = (settings.cartogramWidth - 2 * settings.boundaryWidth) / (maxX - minX);
-        double yScale = (settings.cartogramHeight - 2 * settings.boundaryWidth) / (maxY - minY);
+        double xScale = settings.cartogramWidth / (maxX - minX);
+        double yScale = settings.cartogramHeight / (maxY - minY);
+        double xOffset = minX;
+        double yOffset = minY;
 
-        for (SubdivisionFace f : sub.getTopLevelFaces()) {
-            if (!f.isBoundary()) {
-                SegmentIdentification.FaceSegments s = segments.get(f);
-                variables.compute(s.left.name, (key, val) -> settings.boundaryWidth + xScale * val);
-                variables.compute(s.right.name, (key, val) -> settings.boundaryWidth + xScale * val);
-                variables.compute(s.bottom.name, (key, val) -> settings.boundaryWidth + yScale * val);
-                variables.compute(s.top.name, (key, val) -> settings.boundaryWidth + yScale * val);
-            }
-        }
+        segments.entrySet().stream()
+                .filter(e -> !e.getKey().isBoundary())
+                .flatMap(e -> Arrays.asList(e.getValue().bottom.name, e.getValue().top.name).stream())
+                .distinct()
+                .forEach(s -> variables.compute(s, (key, val) -> yScale * (val - yOffset)));
+        segments.entrySet().stream()
+                .filter(e -> !e.getKey().isBoundary())
+                .flatMap(e -> Arrays.asList(e.getValue().left.name, e.getValue().right.name).stream())
+                .distinct()
+                .forEach(s -> variables.compute(s, (key, val) -> xScale * (val - xOffset)));
+
+        // Fix the border
+        variables.put(segments.get(sub.getNorthFace()).top.name, settings.cartogramHeight + settings.boundaryWidth);
+        variables.put(segments.get(sub.getSouthFace()).bottom.name, -settings.boundaryWidth);
+        variables.put(segments.get(sub.getEastFace()).right.name, settings.cartogramWidth + settings.boundaryWidth);
+        variables.put(segments.get(sub.getWestFace()).left.name, -settings.boundaryWidth);
     }
 
     private static void computeError(Map<String, Double> variables, CartogramSettings settings, MinimizationProblem problem) {
         double maxError = 0;
-        
+
         for (Constraint constraint : problem.getConstraints()) {
             if (constraint instanceof Constraint.Bilinear) { // Only area constraints are bilinear
                 Constraint.Bilinear areaConstraint = (Constraint.Bilinear) constraint;
@@ -120,18 +127,18 @@ class FeasibleSolutionBuilder {
                         .sum();
 
                 double error = Math.abs(area - desiredArea) / desiredArea + 0.01;
-                if (error <0) {
+                if (error < 0) {
                     System.out.println("ERROR < 0: " + area + " " + desiredArea + " " + error);
                     System.out.println("Constraint: " + constraint);
                 }
                 variables.put(errorVar, error); // Increase to avoid infeasibility because of accuracy
-                
+
                 maxError = Math.max(maxError, error);
             }
         }
 
-        if (settings.objective == CartogramSettings.Objective.MAX_AND_AVERAGE_ERROR 
-                || settings.objective == CartogramSettings.Objective.MAX_AND_AVERAGE_ERROR_SQUARED 
+        if (settings.objective == CartogramSettings.Objective.MAX_AND_AVERAGE_ERROR
+                || settings.objective == CartogramSettings.Objective.MAX_AND_AVERAGE_ERROR_SQUARED
                 || settings.objective == CartogramSettings.Objective.MAX_ERROR) {
             variables.put(SubdivisionToBilinearProblem.MAX_ERROR_VARIABLE_NAME, maxError);
         }

@@ -16,19 +16,26 @@
 package rectocarto.algos.lp;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import rectangularcartogram.algos.MinimumLabelingComputer;
+import rectangularcartogram.algos.RectangularDualDrawer;
+import rectangularcartogram.data.Pair;
+import rectangularcartogram.data.graph.Vertex;
 import rectangularcartogram.data.subdivision.Subdivision;
+import rectangularcartogram.data.subdivision.SubdivisionFace;
 import rectangularcartogram.exceptions.IncorrectGraphException;
+import rectangularcartogram.ipe.IPEExporter;
 import rectocarto.data.CartogramSettings;
 import rectocarto.data.lp.Constraint;
 import rectocarto.data.lp.MinimizationProblem;
@@ -85,9 +92,9 @@ public class FeasibleSolutionBuilderTest {
 
     private static final String[] maps = new String[]{
         // "exampleData/Subdivisions/Simple.sub",
-        // "exampleData/Subdivisions/Europe.sub",
+        "exampleData/Subdivisions/Europe.sub",
         "exampleData/Subdivisions/Netherlands Area.sub",
-        // "exampleData/Subdivisions/World.sub"
+        "exampleData/Subdivisions/World.sub"
     };
 
     /**
@@ -107,12 +114,24 @@ public class FeasibleSolutionBuilderTest {
                     SubdivisionToBilinearProblem s2bp = new SubdivisionToBilinearProblem(sub, settings);
                     MinimizationProblem problem = s2bp.getProblem();
 
-                    Solution sol = FeasibleSolutionBuilder.constructFeasibleSolution1(sub, settings, problem, s2bp.segments);
+                    try {
+                        Solution sol = FeasibleSolutionBuilder.constructFeasibleSolution1(sub, settings, problem, s2bp.segments);
+                        Subdivision cartogram = getCartogram(sub, sol, s2bp.segments);
 
-                    if (!testFeasibility(sol, problem)) {
-                        System.out.println("Infeasible.");
-                    } else {
-                        System.out.println("Feasible");
+                        (new IPEExporter()).exportIPEFile(Paths.get("temp.sub").toFile(), cartogram, false);
+
+                        if (!testFeasibility(sol, problem)) {
+                            System.out.println("Infeasible.");
+                        } else {
+                            System.out.println("Feasible");
+                        }
+                    } catch (IllegalArgumentException ex) {
+                        if (ex.getMessage().startsWith("No cartogram")) {
+                            System.out.println("Infeasible.");
+                            continue;
+                        } else {
+                            throw ex;
+                        }
                     }
                 }
             }
@@ -132,7 +151,6 @@ public class FeasibleSolutionBuilderTest {
     private boolean testFeasibility(Solution sol, MinimizationProblem problem) {
         for (Constraint constraint : problem.getConstraints()) {
             if (!constraintIsSatisfied(constraint, sol)) {
-                System.out.println(constraint + " is not satisfied by solution " + sol);
                 return false;
             }
         }
@@ -162,5 +180,27 @@ public class FeasibleSolutionBuilderTest {
             default:
                 throw new IllegalArgumentException("Unexpected comparison: " + constraint.getComparison());
         }
+    }
+
+    private Subdivision getCartogram(Subdivision sub, Solution sol, Map<SubdivisionFace, SegmentIdentification.FaceSegments> segments) throws IncorrectGraphException {
+        Pair<Subdivision, Map<SubdivisionFace, SubdivisionFace>> dual = (new RectangularDualDrawer()).drawSubdivision(sub, true);
+
+        for (SubdivisionFace face : sub.getTopLevelFaces()) {
+            ArrayList<Vertex> corners = new ArrayList<>(4);
+
+            double left = sol.get(segments.get(face).left.name);
+            double right = sol.get(segments.get(face).right.name);
+            double bottom = sol.get(segments.get(face).bottom.name);
+            double top = sol.get(segments.get(face).top.name);
+
+            corners.add(new Vertex(left, bottom));
+            corners.add(new Vertex(right, bottom));
+            corners.add(new Vertex(right, top));
+            corners.add(new Vertex(left, top));
+
+            dual.getSecond().get(face).setVertices(corners);
+        }
+
+        return dual.getFirst();
     }
 }

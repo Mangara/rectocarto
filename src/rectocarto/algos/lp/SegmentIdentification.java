@@ -88,6 +88,13 @@ public class SegmentIdentification {
     static class FaceSegments {
 
         Segment left, top, right, bottom;
+
+        @Override
+        public String toString() {
+            return "S[" + "left=" + left + ", top=" + top + ", right=" + right + ", bottom=" + bottom + ']';
+        }
+        
+        
     }
 
     static class Segment {
@@ -124,6 +131,11 @@ public class SegmentIdentification {
                 rep1.parent = rep2;
                 rep2.rank++;
             }
+        }
+
+        @Override
+        public String toString() {
+            return name;
         }
     }
 
