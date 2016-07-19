@@ -173,9 +173,9 @@ public class SubdivisionToBilinearProblem {
         addAdjacencyConstraints();
         addAspectRatioConstraints();
         addAreaConstraints();
-
-        problem = ProblemReduction.substituteFixedVariables(problem);
-        problem = ProblemReduction.removeDuplicateConstraints(problem);
+        
+        //problem = ProblemReduction.substituteFixedVariables(problem);
+        //problem = ProblemReduction.removeDuplicateConstraints(problem);
     }
 
     private void checkForIssues() {

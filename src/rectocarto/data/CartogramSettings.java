@@ -18,11 +18,11 @@ package rectocarto.data;
 public class CartogramSettings {
 
     /**
-     * The width (in pixels) of the final cartogram.
+     * The width (in pixels) of the final cartogram without the borders.
      */
     public double cartogramWidth = 1000;
     /**
-     * The height (in pixels) of the final cartogram.
+     * The height (in pixels) of the final cartogram without the borders.
      */
     public double cartogramHeight = 750;
     /**
