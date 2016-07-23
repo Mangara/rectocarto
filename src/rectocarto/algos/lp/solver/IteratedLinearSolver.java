@@ -15,12 +15,9 @@
  */
 package rectocarto.algos.lp.solver;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import rectangularcartogram.data.Pair;
-import rectocarto.data.lp.Constraint;
+import rectocarto.algos.lp.BilinearToLinear;
 import rectocarto.data.lp.MinimizationProblem;
 import rectocarto.data.lp.ObjectiveFunction;
 import rectocarto.data.lp.Solution;
@@ -59,122 +56,13 @@ public class IteratedLinearSolver {
         }
 
         for (int i = 0; i < nIterations; i++) {
-            lastSolution = solver.solve(substituteVariables(bilinearProgram, lastSolution));
-            lastSolution = solver.solve(substituteVariables(bilinearProgram, lastSolution));
+            lastSolution.keySet().retainAll(variablePartition.getFirst());
+            lastSolution = solver.solve(BilinearToLinear.restrictToLinear(bilinearProgram, lastSolution));
+            
+            lastSolution.keySet().retainAll(variablePartition.getSecond());
+            lastSolution = solver.solve(BilinearToLinear.restrictToLinear(bilinearProgram, lastSolution));
         }
 
         return lastSolution;
     }
-
-    private MinimizationProblem substituteVariables(MinimizationProblem bilinearProgram, Map<String, Double> variableAssignment) {
-        MinimizationProblem linear = new MinimizationProblem();
-        linear.setObjective(substituteVariables(bilinearProgram.getObjective(), variableAssignment));
-
-        for (Constraint c : bilinearProgram.getConstraints()) {
-            if (c instanceof Constraint.Linear) {
-                linear.addConstraint(c);
-            } else if (c instanceof Constraint.Bilinear) {
-                linear.addConstraint(restrictToLinear((Constraint.Bilinear) c, variableAssignment));
-            } else {
-                throw new AssertionError("Unexpected constraint type: " + c.getClass());
-            }
-        }
-
-        return linear;
-    }
-
-    private ObjectiveFunction substituteVariables(ObjectiveFunction objective, Map<String, Double> variableAssignment) {
-        if (objective instanceof ObjectiveFunction.Linear) {
-            ObjectiveFunction.Linear result = new ObjectiveFunction.Linear();
-
-            for (Pair<Double, String> term : ((ObjectiveFunction.Linear) objective).getTerms()) {
-                if (!variableAssignment.containsKey(term.getSecond())) { // If it does, this term is constant and does not need to be optimized
-                    result.addTerm(term.getFirst(), term.getSecond());
-                }
-            }
-
-            return result;
-        } else if (objective instanceof ObjectiveFunction.Quadratic) {
-            ObjectiveFunction.Quadratic result = new ObjectiveFunction.Quadratic();
-
-            for (Pair<Double, String> term : ((ObjectiveFunction.Quadratic) objective).getLinearTerms()) {
-                if (!variableAssignment.containsKey(term.getSecond())) { // If it does, this term is constant and does not need to be optimized
-                    result.addLinearTerm(term.getFirst(), term.getSecond());
-                }
-            }
-            
-            for (Pair<Double, String> term : ((ObjectiveFunction.Quadratic) objective).getQuadraticTerms()) {
-                if (!variableAssignment.containsKey(term.getSecond())) { // If it does, this term is constant and does not need to be optimized
-                    result.addQuadraticTerm(term.getFirst(), term.getSecond());
-                }
-            }
-            
-            return result;
-        } else {
-            throw new AssertionError("Unexpected objective function type: " + objective.getClass());
-        }
-    }
-
-    /**
-     * Converts this bilinear constraint to a linear constraint by substituting
-     * the given values for their variables. The caller should ensure that the
-     * variable assignment includes at least one variable from each bilinear
-     * term. Bilinear terms that simplify to linear terms in the same variable
-     * are collected.
-     *
-     * @param constraint
-     * @param variableAssignment
-     * @return
-     * @throws IllegalArgumentException If there is a bilinear term, both of
-     * whose variables are not in the variable assignment.
-     */
-    Constraint.Linear restrictToLinear(Constraint.Bilinear constraint, Map<String, Double> variableAssignment) {
-        double newRightHandSide = constraint.getRightHandSide();
-        List<Pair<Double, String>> newLinearTerms = new ArrayList<>();
-
-        for (Pair<Double, String> linearTerm : constraint.getLinearTerms()) {
-            if (variableAssignment.containsKey(linearTerm.getSecond())) {
-                newRightHandSide -= linearTerm.getFirst() * variableAssignment.get(linearTerm.getSecond());
-            } else {
-                newLinearTerms.add(new Pair<>(linearTerm.getFirst(), linearTerm.getSecond()));
-            }
-        }
-
-        for (Pair<Double, Pair<String, String>> bilinearTerm : constraint.getBilinearTerms()) {
-            String var1 = bilinearTerm.getSecond().getFirst();
-            String var2 = bilinearTerm.getSecond().getSecond();
-            Pair<Double, String> newTerm = null;
-
-            if (variableAssignment.containsKey(var1)) {
-                if (variableAssignment.containsKey(var2)) {
-                    newRightHandSide -= bilinearTerm.getFirst() * variableAssignment.get(var1) * variableAssignment.get(var2);
-                } else {
-                    newTerm = new Pair<>(bilinearTerm.getFirst() * variableAssignment.get(var1), var2);
-                }
-            } else if (variableAssignment.containsKey(var2)) {
-                newTerm = new Pair<>(bilinearTerm.getFirst() * variableAssignment.get(var2), var1);
-            } else {
-                throw new IllegalArgumentException("The variable assignment must contain values for at least one of the variables of each bilinear term.");
-            }
-
-            if (newTerm != null) {
-                boolean found = false;
-
-                for (Pair<Double, String> newLinearTerm : newLinearTerms) {
-                    if (newLinearTerm.getSecond().equals(newTerm.getSecond())) {
-                        newLinearTerm.setFirst(newLinearTerm.getFirst() + newTerm.getFirst());
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    newLinearTerms.add(newTerm);
-                }
-            }
-        }
-
-        return new Constraint.Linear(newLinearTerms, constraint.getComparison(), newRightHandSide);
-    }
-
 }
