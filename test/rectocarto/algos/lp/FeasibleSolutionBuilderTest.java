@@ -36,6 +36,7 @@ import rectangularcartogram.data.subdivision.Subdivision;
 import rectangularcartogram.data.subdivision.SubdivisionFace;
 import rectangularcartogram.exceptions.IncorrectGraphException;
 import rectangularcartogram.ipe.IPEExporter;
+import rectocarto.algos.lp.solver.CLPSolver;
 import rectocarto.data.CartogramSettings;
 import rectocarto.data.lp.Constraint;
 import rectocarto.data.lp.MinimizationProblem;
@@ -91,10 +92,10 @@ public class FeasibleSolutionBuilderTest {
     }
 
     private static final String[] maps = new String[]{
-        // "exampleData/Subdivisions/Simple.sub",
-        "exampleData/Subdivisions/Europe.sub",
-        "exampleData/Subdivisions/Netherlands Area.sub",
-        "exampleData/Subdivisions/World.sub"
+         "exampleData/Subdivisions/Simple.sub",
+        //"exampleData/Subdivisions/Europe.sub",
+        //"exampleData/Subdivisions/Netherlands Area.sub",
+        //"exampleData/Subdivisions/World.sub"
     };
 
     /**
@@ -117,8 +118,7 @@ public class FeasibleSolutionBuilderTest {
                     try {
                         Solution sol = FeasibleSolutionBuilder.constructFeasibleSolution1(sub, settings, problem, s2bp.segments);
                         
-                        //Subdivision cartogram = getCartogram(sub, sol, s2bp.segments);
-                        //(new IPEExporter()).exportIPEFile(Paths.get("temp.sub").toFile(), cartogram, false);
+                        //(new IPEExporter()).exportIPEFile(Paths.get("temp.ipe").toFile(), getCartogram(sub, sol, s2bp.segments), false);
 
                         if (!testFeasibility(sol, problem)) {
                             System.out.println("Infeasible.");
@@ -127,7 +127,7 @@ public class FeasibleSolutionBuilderTest {
                         }
                     } catch (IllegalArgumentException ex) {
                         if (ex.getMessage().startsWith("No cartogram")) {
-                            System.out.println("Infeasible.");
+                            System.out.println("Infeasible. (Exception)");
                             continue;
                         } else {
                             throw ex;
@@ -143,9 +143,39 @@ public class FeasibleSolutionBuilderTest {
      * FeasibleSolutionBuilder.
      */
     @Test
-    public void testConstructFeasibleSolution2() {
+    public void testConstructFeasibleSolution2() throws IOException, IncorrectGraphException {
         System.out.println("constructFeasibleSolution2 - new method");
 
+        for (String map : maps) {
+            try (BufferedReader in = Files.newBufferedReader(Paths.get(map))) {
+                Subdivision sub = Subdivision.load(in);
+                sub.getDualGraph().setRegularEdgeLabeling(MinimumLabelingComputer.getMinimalLabeling(sub.getDualGraph()));
+
+                for (CartogramSettings settings : allSettingCombinations) {
+                    SubdivisionToBilinearProblem s2bp = new SubdivisionToBilinearProblem(sub, settings);
+                    MinimizationProblem problem = s2bp.getProblem();
+
+                    try {
+                        Solution sol = FeasibleSolutionBuilder.constructFeasibleSolution2(sub, settings, problem, s2bp.segments, new CLPSolver());
+                        
+                        //(new IPEExporter()).exportIPEFile(Paths.get("temp.ipe").toFile(), getCartogram(sub, sol, s2bp.segments), false);
+
+                        if (!testFeasibility(sol, problem)) {
+                            System.out.println("Infeasible.");
+                        } else {
+                            System.out.println("Feasible");
+                        }
+                    } catch (IllegalArgumentException ex) {
+                        if (ex.getMessage().startsWith("No cartogram")) {
+                            System.out.println("Infeasible. (Exception)");
+                            continue;
+                        } else {
+                            throw ex;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private boolean testFeasibility(Solution sol, MinimizationProblem problem) {
