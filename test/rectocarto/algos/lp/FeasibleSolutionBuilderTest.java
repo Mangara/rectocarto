@@ -92,21 +92,22 @@ public class FeasibleSolutionBuilderTest {
     }
 
     private static final String[] maps = new String[]{
-         "exampleData/Subdivisions/Simple.sub",
-        //"exampleData/Subdivisions/Europe.sub",
-        //"exampleData/Subdivisions/Netherlands Area.sub",
-        //"exampleData/Subdivisions/World.sub"
+        //"exampleData/Subdivisions/Simple.sub",
+        "exampleData/Subdivisions/Europe.sub",
+        "exampleData/Subdivisions/Netherlands Area.sub",
+        "exampleData/Subdivisions/World.sub"
     };
 
     /**
      * Test of constructFeasibleSolution1 method, of class
      * FeasibleSolutionBuilder.
      */
-    @Test
+    //@Test
     public void testConstructFeasibleSolution1() throws IOException, IncorrectGraphException {
         System.out.println("constructFeasibleSolution1 - old method"); // 589 infeasible vs 133 feasible
 
         for (String map : maps) {
+            System.out.println("Map: " + map);
             try (BufferedReader in = Files.newBufferedReader(Paths.get(map))) {
                 Subdivision sub = Subdivision.load(in);
                 sub.getDualGraph().setRegularEdgeLabeling(MinimumLabelingComputer.getMinimalLabeling(sub.getDualGraph()));
@@ -117,9 +118,8 @@ public class FeasibleSolutionBuilderTest {
 
                     try {
                         Solution sol = FeasibleSolutionBuilder.constructFeasibleSolution1(sub, settings, problem, s2bp.segments);
-                        
-                        //(new IPEExporter()).exportIPEFile(Paths.get("temp.ipe").toFile(), getCartogram(sub, sol, s2bp.segments), false);
 
+                        //(new IPEExporter()).exportIPEFile(Paths.get("temp.ipe").toFile(), getCartogram(sub, sol, s2bp.segments), false);
                         if (!testFeasibility(sol, problem)) {
                             System.out.println("Infeasible.");
                         } else {
@@ -147,6 +147,7 @@ public class FeasibleSolutionBuilderTest {
         System.out.println("constructFeasibleSolution2 - new method");
 
         for (String map : maps) {
+            System.out.println("Map: " + map);
             try (BufferedReader in = Files.newBufferedReader(Paths.get(map))) {
                 Subdivision sub = Subdivision.load(in);
                 sub.getDualGraph().setRegularEdgeLabeling(MinimumLabelingComputer.getMinimalLabeling(sub.getDualGraph()));
@@ -157,11 +158,15 @@ public class FeasibleSolutionBuilderTest {
 
                     try {
                         Solution sol = FeasibleSolutionBuilder.constructFeasibleSolution2(sub, settings, problem, s2bp.segments, new CLPSolver());
-                        
-                        //(new IPEExporter()).exportIPEFile(Paths.get("temp.ipe").toFile(), getCartogram(sub, sol, s2bp.segments), false);
 
-                        if (!testFeasibility(sol, problem)) {
+                        if (sol != Solution.INFEASIBLE) {
+                            (new IPEExporter()).exportIPEFile(Paths.get("temp.ipe").toFile(), getCartogram(sub, sol, s2bp.segments), false);
+                        }
+
+                        if (sol == Solution.INFEASIBLE) {
                             System.out.println("Infeasible.");
+                        } else if (!testFeasibility(sol, problem)) {
+                            System.out.println("Solution returned was actually infeasible.");
                         } else {
                             System.out.println("Feasible");
                         }
@@ -179,14 +184,22 @@ public class FeasibleSolutionBuilderTest {
     }
 
     private boolean testFeasibility(Solution sol, MinimizationProblem problem) {
+        if (sol == Solution.INFEASIBLE) {
+            return false;
+        }
+
         for (Constraint constraint : problem.getConstraints()) {
             if (!constraintIsSatisfied(constraint, sol)) {
+                System.out.println("Constraint " + constraint + " was violated.");
+                System.out.println("Solution: " + sol);
                 return false;
             }
         }
 
         return true;
     }
+
+    private static final double EPSILON = 0.000000001;
 
     private boolean constraintIsSatisfied(Constraint constraint, Solution sol) {
         double val;
@@ -202,11 +215,11 @@ public class FeasibleSolutionBuilderTest {
 
         switch (constraint.getComparison()) {
             case EQUAL:
-                return Math.abs(val - constraint.getRightHandSide()) < 0.000000001;
+                return Math.abs(val - constraint.getRightHandSide()) < EPSILON;
             case GREATER_THAN_OR_EQUAL:
-                return val >= constraint.getRightHandSide();
+                return val >= constraint.getRightHandSide() - EPSILON;
             case LESS_THAN_OR_EQUAL:
-                return val <= constraint.getRightHandSide();
+                return val <= constraint.getRightHandSide() + EPSILON;
             default:
                 throw new IllegalArgumentException("Unexpected comparison: " + constraint.getComparison());
         }

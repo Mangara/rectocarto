@@ -70,33 +70,39 @@ class FeasibleSolutionBuilder {
     static Solution constructFeasibleSolution2(Subdivision sub, CartogramSettings settings, MinimizationProblem problem, Map<SubdivisionFace, SegmentIdentification.FaceSegments> segments, LinearSolver solver) {
         Map<String, Double> variables = new HashMap<>(2 * sub.getTopLevelFaces().size());
 
-        System.out.println("Problem: " + problem);
+        //System.out.println("Problem: " + problem);
 
         // Build a feasible solution for horizontal segments, then solve the remaining LP
         buildFeasibleHorizontalSolution(variables, sub, settings, problem, segments);
-        
-        System.out.println("variables after step 1: " + variables);
-        
+        scaleHorizontalSegments(sub, settings, segments, variables);
+
+        //System.out.println("variables after step 1: " + variables);
+
         MinimizationProblem lp = BilinearToLinear.restrictToLinear(problem, variables);
-        
-        System.out.println("Reduced LP:");
-        System.out.println(lp);
-        
+
+        //System.out.println("Reduced LP:");
+        //System.out.println(lp);
+
         Solution sol = solver.solve(lp);
-        
-        System.out.println("variables after LP: " + sol);
-        
+
+        //System.out.println("variables after LP: " + sol);
+
         if (sol.isInfeasible()) {
-            System.out.println("Infeasible.");
+            //System.out.println("Infeasible.");
+            return Solution.INFEASIBLE;
         } else if (sol.isUnbounded()) {
             System.out.println("Unbounded.");
         }
 
+        variables.putAll(sol);
+        
+        //System.out.println("Resulting variables: " + variables);
+        
         // If this doesn't work, repeat for the vertical segments
         // If both don't work, give up
         // toplogical sort on dual of st-graphs, incrementing by minimumSeparation or minimumSeaDimension
         fixBorder(variables, segments, sub, settings);
-        computeError(variables, settings, problem);
+        //computeError(variables, settings, problem);
 
         return new Solution(problem.getObjective().evaluate(variables), variables);
     }
@@ -107,9 +113,8 @@ class FeasibleSolutionBuilder {
                 .flatMap(e -> Arrays.asList(e.getValue().bottom.name, e.getValue().top.name).stream())
                 .collect(Collectors.toSet());
 
-        Set<String> fixedSegments = new HashSet<>();
         HashMap<String, List<String>> successors = new HashMap<>();
-        HashMap<String, List<Pair<String, Pair<Double, Double>>>> predecessors = computePredecessorsAndFixedSegments(problem, horizontalSegments, variables, fixedSegments, successors);
+        HashMap<String, List<Pair<String, Pair<Double, Double>>>> predecessors = computePredecessorsAndSuccessors(problem, horizontalSegments, variables, successors);
 
         HashMap<String, Integer> nUnmarkedPredecessors = new HashMap<>(2 * horizontalSegments.size());
         Queue<String> nextSegments = new LinkedList<>(); // Vertices with no unmarked predecessors, but which haven't been numbered themselves
@@ -120,7 +125,7 @@ class FeasibleSolutionBuilder {
 
             nUnmarkedPredecessors.put(s, pred);
 
-            if (pred == 0 || fixedSegments.contains(s)) {
+            if (pred == 0) {
                 nextSegments.add(s);
             }
         }
@@ -128,17 +133,15 @@ class FeasibleSolutionBuilder {
         while (!nextSegments.isEmpty()) {
             String seg = nextSegments.remove();
 
-            if (!fixedSegments.contains(seg)) {
-                // Find the smallest double that satisfies all predecessor constraints
-                double lowerBound = 0;
+            // Find the smallest double that satisfies all predecessor constraints
+            double lowerBound = variables.getOrDefault(seg, 0d);
 
-                for (Pair<String, Pair<Double, Double>> pred : predecessors.getOrDefault(seg, Collections.<Pair<String, Pair<Double, Double>>>emptyList())) {
-                    double val = pred.getSecond().getFirst() * variables.get(pred.getFirst()) + pred.getSecond().getSecond();
-                    lowerBound = Math.max(lowerBound, val);
-                }
-
-                variables.put(seg, lowerBound);
+            for (Pair<String, Pair<Double, Double>> pred : predecessors.getOrDefault(seg, Collections.<Pair<String, Pair<Double, Double>>>emptyList())) {
+                double val = pred.getSecond().getFirst() * variables.get(pred.getFirst()) + pred.getSecond().getSecond();
+                lowerBound = Math.max(lowerBound, val);
             }
+
+            variables.put(seg, lowerBound);
 
             // Let successors know that this segment now has a value
             for (String succ : successors.getOrDefault(seg, Collections.<String>emptyList())) {
@@ -152,71 +155,47 @@ class FeasibleSolutionBuilder {
         }
     }
 
-    private static HashMap<String, List<Pair<String, Pair<Double, Double>>>> computePredecessorsAndFixedSegments(MinimizationProblem problem, Set<String> horizontalSegments, Map<String, Double> variables, Set<String> fixedSegments, HashMap<String, List<String>> successors) {
+    private static HashMap<String, List<Pair<String, Pair<Double, Double>>>> computePredecessorsAndSuccessors(MinimizationProblem problem, Set<String> horizontalSegments, Map<String, Double> variables, HashMap<String, List<String>> successors) {
         HashMap<String, List<Pair<String, Pair<Double, Double>>>> predecessors = new HashMap<>();
 
-        for (Constraint constraint : problem.getConstraints()) {
-            if (constraint instanceof Constraint.Linear) {
-                Constraint.Linear linear = (Constraint.Linear) constraint;
+        // Handle simple lower bounds (constraints in 1 var)
+        problem.getConstraints().stream()
+                .filter(c -> c instanceof Constraint.Linear && (c.getComparison() == Constraint.Comparison.GREATER_THAN_OR_EQUAL || c.getComparison() == Constraint.Comparison.LESS_THAN_OR_EQUAL))
+                .map(c -> (Constraint.Linear) c)
+                .filter(c -> c.getTerms().size() == 1 && horizontalSegments.contains(c.getTerms().get(0).getSecond()))
+                .filter(c -> (c.getComparison() == Constraint.Comparison.GREATER_THAN_OR_EQUAL && c.getTerms().get(0).getFirst() > 0)
+                        || (c.getComparison() == Constraint.Comparison.LESS_THAN_OR_EQUAL && c.getTerms().get(0).getFirst() < 0))
+                .forEach(c -> {
+                    variables.merge(c.getTerms().get(0).getSecond(), c.getRightHandSide() / c.getTerms().get(0).getFirst(), Math::max);
+                });
 
-                if (linear.getTerms().size() == 1) {
-                    String var = linear.getTerms().get(0).getSecond();
-
-                    if (horizontalSegments.contains(var)) {
-                        double val = linear.getRightHandSide() / linear.getTerms().get(0).getFirst();
-
-                        if (linear.getComparison() == Constraint.Comparison.EQUAL) {
-                            variables.put(var, val);
-                            fixedSegments.add(var);
-                        } else if (linear.getComparison() == Constraint.Comparison.GREATER_THAN_OR_EQUAL && !fixedSegments.contains(var)) {
-                            variables.merge(var, val, Math::max);
-                        }
+        // Handle predecessors and successors (constraints in 2 vars)
+        problem.getConstraints().stream()
+                .filter(c -> c instanceof Constraint.Linear && (c.getComparison() == Constraint.Comparison.GREATER_THAN_OR_EQUAL || c.getComparison() == Constraint.Comparison.LESS_THAN_OR_EQUAL))
+                .map(c -> (Constraint.Linear) c)
+                .filter(c -> c.getTerms().size() == 2 && horizontalSegments.contains(c.getTerms().get(0).getSecond()) && horizontalSegments.contains(c.getTerms().get(1).getSecond()))
+                .filter(c -> c.getTerms().get(0).getFirst() * c.getTerms().get(1).getFirst() < 0) // One of the two is negative
+                .forEach(c -> {
+                    double f1 = c.getTerms().get(0).getFirst(), f2 = c.getTerms().get(1).getFirst();
+                    String var1 = c.getTerms().get(0).getSecond(), var2 = c.getTerms().get(1).getSecond();
+                    double rh = c.getRightHandSide();
+                    
+                    // f1 * var1 + f2 * var2 <op> rh
+                    
+                    if (c.getComparison() == Constraint.Comparison.LESS_THAN_OR_EQUAL) {
+                        f1 *= -1;
+                        f2 *= -1;
+                        rh *= -1;
                     }
-                } else if (linear.getTerms().size() == 2) {
-                    String var1 = linear.getTerms().get(0).getSecond();
-                    String var2 = linear.getTerms().get(1).getSecond();
-
-                    if (horizontalSegments.contains(var1) && horizontalSegments.contains(var2)) {
-                        double f1 = linear.getTerms().get(0).getFirst();
-                        double f2 = linear.getTerms().get(1).getFirst();
-
-                        if (linear.getComparison() == Constraint.Comparison.GREATER_THAN_OR_EQUAL) {
-                            // f1 var1 + f2 var2 >= rh
-
-                            if (f1 < 0 && f2 > 0 && !fixedSegments.contains(var2)) {
-                                // Change to "var2 >= factor var1 + constant"
-                                double factor = -f1 / f2;
-                                double constant = linear.getRightHandSide() / f2;
-
-                                addPredecessor(predecessors, successors, var2, var1, factor, constant);
-                            } else if (f2 < 0 && f1 > 0 && !fixedSegments.contains(var1)) {
-                                // Change to "var1 >= factor var2 + constant"
-                                double factor = -f2 / f1;
-                                double constant = linear.getRightHandSide() / f1;
-
-                                addPredecessor(predecessors, successors, var1, var2, factor, constant);
-                            }
-                        } else if (linear.getComparison() == Constraint.Comparison.LESS_THAN_OR_EQUAL) {
-                            // f1 var1 + f2 var2 <= rh
-
-                            if (f1 < 0 && f2 > 0 && !fixedSegments.contains(var1)) {
-                                // Change to "var1 >= factor var2 + constant"
-                                double factor = f2 / f1;
-                                double constant = -linear.getRightHandSide() / f1;
-
-                                addPredecessor(predecessors, successors, var1, var2, factor, constant);
-                            } else if (f2 < 0 && f1 > 0 && !fixedSegments.contains(var2)) {
-                                // Change to "var2 >= factor var1 + constant"
-                                double factor = f1 / f2;
-                                double constant = -linear.getRightHandSide() / f2;
-
-                                addPredecessor(predecessors, successors, var2, var1, factor, constant);
-                            }
-                        }
+                    
+                    // f1 * var1 + f2 * var2 >= rh, where one of f1 and f2 is positive
+                    
+                    if (f1 > 0) {
+                        addPredecessor(predecessors, successors, var1, var2, -f2 / f1, rh / f1);
+                    } else { // f2 > 0
+                        addPredecessor(predecessors, successors, var2, var1, -f1 / f2, rh / f2);
                     }
-                }
-            }
-        }
+                });
 
         return predecessors;
     }
@@ -284,6 +263,31 @@ class FeasibleSolutionBuilder {
                 .flatMap(e -> Arrays.asList(e.getValue().left.name, e.getValue().right.name).stream())
                 .distinct()
                 .forEach(s -> variables.compute(s, (key, val) -> xScale * (val - xOffset)));
+    }
+    
+    private static void scaleHorizontalSegments(Subdivision sub, CartogramSettings settings, Map<SubdivisionFace, SegmentIdentification.FaceSegments> segments, Map<String, Double> variables) {
+        double minY = Double.POSITIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
+
+        for (SubdivisionFace f : sub.getTopLevelFaces()) {
+            if (!f.isBoundary()) {
+                SegmentIdentification.FaceSegments s = segments.get(f);
+                minY = Math.min(minY, variables.get(s.bottom.name));
+                maxY = Math.max(maxY, variables.get(s.top.name));
+            }
+        }
+
+        if (maxY - minY > settings.cartogramHeight) {
+            throw new IllegalArgumentException("No cartogram can be constructed with these settings. Either increase the cartogram width and height or decrease the minimum separation.");
+        }
+
+        double yScale = settings.cartogramHeight / (maxY - minY);
+        double yOffset = minY;
+
+        segments.entrySet().stream()
+                .filter(e -> !e.getKey().isBoundary())
+                .flatMap(e -> Arrays.asList(e.getValue().bottom.name, e.getValue().top.name).stream())
+                .distinct()
+                .forEach(s -> variables.compute(s, (key, val) -> yScale * (val - yOffset)));
     }
 
     private static void fixBorder(Map<String, Double> variables, Map<SubdivisionFace, FaceSegments> segments, Subdivision sub, CartogramSettings settings) {
