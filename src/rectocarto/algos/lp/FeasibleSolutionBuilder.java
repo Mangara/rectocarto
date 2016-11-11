@@ -26,9 +26,9 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import rectangularcartogram.algos.RectangularDualDrawer;
 import rectangularcartogram.data.Pair;
-import rectangularcartogram.data.graph.Edge;
 import rectangularcartogram.data.graph.Vertex;
 import rectangularcartogram.data.subdivision.Subdivision;
 import rectangularcartogram.data.subdivision.SubdivisionFace;
@@ -42,6 +42,10 @@ import rectocarto.data.lp.Solution;
 
 class FeasibleSolutionBuilder {
 
+    public static void main(String[] args) {
+        
+    }
+    
     static Solution constructFeasibleSolution1(Subdivision sub, CartogramSettings settings, MinimizationProblem problem, Map<SubdivisionFace, SegmentIdentification.FaceSegments> segments) {
         try {
             Pair<Subdivision, Map<SubdivisionFace, SubdivisionFace>> dual = (new RectangularDualDrawer()).drawSubdivision(sub, true);
@@ -68,12 +72,10 @@ class FeasibleSolutionBuilder {
     }
 
     static Solution constructFeasibleSolution2(Subdivision sub, CartogramSettings settings, MinimizationProblem problem, Map<SubdivisionFace, SegmentIdentification.FaceSegments> segments, LinearSolver solver) {
-        Map<String, Double> variables = new HashMap<>(2 * sub.getTopLevelFaces().size());
-
         //System.out.println("Problem: " + problem);
 
-        // Build a feasible solution for horizontal segments, then solve the remaining LP
-        buildFeasibleHorizontalSolution(variables, sub, settings, problem, segments);
+        // Build a reasonable solution for horizontal segments, then solve the remaining LP
+        Map<String, Double> variables = computeMinimalHorizontalSolution(problem, segments);
         scaleHorizontalSegments(sub, settings, segments, variables);
 
         //System.out.println("variables after step 1: " + variables);
@@ -107,29 +109,33 @@ class FeasibleSolutionBuilder {
         return new Solution(problem.getObjective().evaluate(variables), variables);
     }
 
-    private static void buildFeasibleHorizontalSolution(Map<String, Double> variables, Subdivision sub, CartogramSettings settings, MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments) {
+    private static Map<String, Double> computeMinimalHorizontalSolution(MinimizationProblem problem, Map<SubdivisionFace, FaceSegments> segments) {
         Set<String> horizontalSegments = segments.entrySet().stream()
                 .filter(e -> !e.getKey().isBoundary())
-                .flatMap(e -> Arrays.asList(e.getValue().bottom.name, e.getValue().top.name).stream())
+                .flatMap(e -> Stream.of(e.getValue().bottom.name, e.getValue().top.name))
                 .collect(Collectors.toSet());
 
-        HashMap<String, List<String>> successors = new HashMap<>();
-        HashMap<String, List<Pair<String, Pair<Double, Double>>>> predecessors = computePredecessorsAndSuccessors(problem, horizontalSegments, variables, successors);
+        Pair<Map<String, List<Pair<String, Pair<Double, Double>>>>, Map<String, Set<String>>> predAndSucc = computePredecessorsAndSuccessors(problem, horizontalSegments);
+        Map<String, List<Pair<String, Pair<Double, Double>>>> predecessors = predAndSucc.getFirst();
+        Map<String, Set<String>> successors = predAndSucc.getSecond();
 
-        HashMap<String, Integer> nUnmarkedPredecessors = new HashMap<>(2 * horizontalSegments.size());
+        Map<String, Integer> nUnmarkedPredecessors = new HashMap<>(2 * horizontalSegments.size());
         Queue<String> nextSegments = new LinkedList<>(); // Vertices with no unmarked predecessors, but which haven't been numbered themselves
 
         // Compute the number of predecessors for each segment and add those with no predecessors to the queue
         for (String s : horizontalSegments) {
-            int pred = predecessors.getOrDefault(s, Collections.<Pair<String, Pair<Double, Double>>>emptyList()).size();
+            int numPred = predecessors.getOrDefault(s, Collections.<Pair<String, Pair<Double, Double>>>emptyList()).size();
 
-            nUnmarkedPredecessors.put(s, pred);
+            nUnmarkedPredecessors.put(s, numPred);
 
-            if (pred == 0) {
+            if (numPred == 0) {
                 nextSegments.add(s);
             }
         }
 
+        Map<String, Double> variables = new HashMap<>(2 * horizontalSegments.size());
+        applySimpleLowerBounds(problem, horizontalSegments, variables);
+        
         while (!nextSegments.isEmpty()) {
             String seg = nextSegments.remove();
 
@@ -144,20 +150,20 @@ class FeasibleSolutionBuilder {
             variables.put(seg, lowerBound);
 
             // Let successors know that this segment now has a value
-            for (String succ : successors.getOrDefault(seg, Collections.<String>emptyList())) {
-                int remainingPredecessors = nUnmarkedPredecessors.get(succ);
-                nUnmarkedPredecessors.put(succ, remainingPredecessors - 1);
-
-                if (remainingPredecessors == 1) {
+            for (String succ : successors.getOrDefault(seg, Collections.<String>emptySet())) {
+                int remainingPredecessors = nUnmarkedPredecessors.get(succ) - 1;
+                nUnmarkedPredecessors.put(succ, remainingPredecessors);
+                
+                if (remainingPredecessors == 0) {
                     nextSegments.add(succ);
                 }
             }
         }
+        
+        return variables;
     }
 
-    private static HashMap<String, List<Pair<String, Pair<Double, Double>>>> computePredecessorsAndSuccessors(MinimizationProblem problem, Set<String> horizontalSegments, Map<String, Double> variables, HashMap<String, List<String>> successors) {
-        HashMap<String, List<Pair<String, Pair<Double, Double>>>> predecessors = new HashMap<>();
-
+    private static void applySimpleLowerBounds(MinimizationProblem problem, Set<String> horizontalSegments, Map<String, Double> variables) {
         // Handle simple lower bounds (constraints in 1 var)
         problem.getConstraints().stream()
                 .filter(c -> c instanceof Constraint.Linear && (c.getComparison() == Constraint.Comparison.GREATER_THAN_OR_EQUAL || c.getComparison() == Constraint.Comparison.LESS_THAN_OR_EQUAL))
@@ -168,6 +174,11 @@ class FeasibleSolutionBuilder {
                 .forEach(c -> {
                     variables.merge(c.getTerms().get(0).getSecond(), c.getRightHandSide() / c.getTerms().get(0).getFirst(), Math::max);
                 });
+    }
+    
+    private static Pair<Map<String, List<Pair<String, Pair<Double, Double>>>>, Map<String, Set<String>>> computePredecessorsAndSuccessors(MinimizationProblem problem, Set<String> horizontalSegments) {
+        Map<String, List<Pair<String, Pair<Double, Double>>>> predecessors = new HashMap<>();
+        Map<String, Set<String>> successors = new HashMap<>();
 
         // Handle predecessors and successors (constraints in 2 vars)
         problem.getConstraints().stream()
@@ -197,7 +208,7 @@ class FeasibleSolutionBuilder {
                     }
                 });
 
-        return predecessors;
+        return new Pair<>(predecessors, successors);
     }
 
     /**
@@ -211,7 +222,7 @@ class FeasibleSolutionBuilder {
      * @param factor
      * @param constant
      */
-    private static void addPredecessor(HashMap<String, List<Pair<String, Pair<Double, Double>>>> predecessors, HashMap<String, List<String>> successors, String successor, String predecessor, double factor, double constant) {
+    private static void addPredecessor(Map<String, List<Pair<String, Pair<Double, Double>>>> predecessors, Map<String, Set<String>> successors, String successor, String predecessor, double factor, double constant) {
         List<Pair<String, Pair<Double, Double>>> preds = predecessors.get(successor);
 
         if (preds == null) {
@@ -221,10 +232,10 @@ class FeasibleSolutionBuilder {
 
         preds.add(new Pair<>(predecessor, new Pair<>(factor, constant)));
 
-        List<String> succs = successors.get(predecessor);
+        Set<String> succs = successors.get(predecessor);
 
         if (succs == null) {
-            succs = new ArrayList<>();
+            succs = new HashSet<>();
             successors.put(predecessor, succs);
         }
 
