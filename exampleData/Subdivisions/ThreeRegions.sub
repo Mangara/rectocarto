@@ -1,0 +1,179 @@
+CartogramWidth
+0
+CartogramHeight
+0
+Faces
+7
+Vertices
+6
+256.0 560.0
+192.0 560.0
+112.0 480.0
+480.0 480.0
+384.0 560.0
+288.0 560.0
+Color
+160 160 160
+Name
+SOUTH
+CartographicError
+0.0
+Weight
+1.0
+Sea
+true
+CorrespondingVertex
+283.0837004405286 505.6563876651982
+
+Vertices
+4
+384.0 560.0
+480.0 480.0
+480.0 752.0
+384.0 672.0
+Color
+160 160 160
+Name
+EAST
+CartographicError
+0.0
+Weight
+1.0
+Sea
+true
+CorrespondingVertex
+443.94713656387665 617.6916299559472
+
+Vertices
+4
+288.0 672.0
+288.0 560.0
+384.0 560.0
+384.0 672.0
+Color
+154 181 219
+Name
+R2
+CartographicError
+0.0
+Weight
+2.0
+Sea
+false
+CorrespondingVertex
+336.0 616.0
+
+Vertices
+6
+256.0 672.0
+288.0 672.0
+384.0 672.0
+480.0 752.0
+112.0 752.0
+192.0 672.0
+Color
+160 160 160
+Name
+NORTH
+CartographicError
+0.0
+Weight
+1.0
+Sea
+true
+CorrespondingVertex
+279.7885462555066 721.0396475770925
+
+Vertices
+4
+192.0 672.0
+112.0 752.0
+112.0 480.0
+192.0 560.0
+Color
+160 160 160
+Name
+WEST
+CartographicError
+0.0
+Weight
+1.0
+Sea
+true
+CorrespondingVertex
+141.69162995594712 616.7929515418502
+
+Vertices
+4
+192.0 560.0
+256.0 560.0
+256.0 672.0
+192.0 672.0
+Color
+154 181 219
+Name
+R1
+CartographicError
+0.0
+Weight
+1.0
+Sea
+false
+CorrespondingVertex
+224.0 616.0
+
+Vertices
+4
+256.0 672.0
+256.0 560.0
+288.0 560.0
+288.0 672.0
+Color
+154 181 219
+Name
+S
+CartographicError
+0.0
+Weight
+1.0
+Sea
+true
+CorrespondingVertex
+272.0 616.0
+
+Neighbours
+4,5,6,2,1,
+0,2,3,
+0,6,3,1,
+6,5,4,1,2,
+3,5,0,
+4,3,6,0,
+5,3,2,0,
+Dualgraph
+Vertices
+7
+283.0837004405286 505.6563876651982
+443.94713656387665 617.6916299559472
+336.0 616.0
+279.7885462555066 721.0396475770925
+141.69162995594712 616.7929515418502
+224.0 616.0
+272.0 616.0
+
+Edges
+14
+1 0
+5 0
+4 3
+2 6
+0 4
+3 6
+3 5
+2 3
+6 5
+0 2
+4 5
+1 2
+0 6
+1 3
+
