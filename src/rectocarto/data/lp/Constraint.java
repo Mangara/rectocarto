@@ -17,7 +17,6 @@ package rectocarto.data.lp;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import rectangularcartogram.data.Pair;
 
@@ -32,30 +31,10 @@ public abstract class Constraint {
     }
 
     @Override
-    public int hashCode() {
-        int hash = 7;
-        hash = 79 * hash + Objects.hashCode(this.comparison);
-        hash = 79 * hash + (int) (Double.doubleToLongBits(this.rightHandSide) ^ (Double.doubleToLongBits(this.rightHandSide) >>> 32));
-        return hash;
-    }
+    public abstract int hashCode();
 
     @Override
-    public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        final Constraint other = (Constraint) obj;
-        if (this.comparison != other.comparison) {
-            return false;
-        }
-        if (Double.doubleToLongBits(this.rightHandSide) != Double.doubleToLongBits(other.rightHandSide)) {
-            return false;
-        }
-        return true;
-    }
+    public abstract boolean equals(Object obj);
 
     public static class Linear extends Constraint {
 
