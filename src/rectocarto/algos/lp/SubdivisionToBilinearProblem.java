@@ -45,6 +45,7 @@ public class SubdivisionToBilinearProblem {
     private MinimizationProblem problem;
     Map<SubdivisionFace, FaceSegments> segments; // DEBUG: non-oprivate for testing purposes TODO
     private Solution feasibleSolution;
+    private Map<SubdivisionFace, String> errorVariables = new HashMap<>();
     
     public SubdivisionToBilinearProblem(Subdivision sub, CartogramSettings settings) {
         this.sub = sub;
@@ -134,12 +135,10 @@ public class SubdivisionToBilinearProblem {
 
         Set<String> error = new HashSet<>();
 
-        int count = 0;
         for (SubdivisionFace f : sub.getTopLevelFaces()) {
             if (!f.isBoundary() && !f.isSea()) {
-                error.add(getErrorVariableName(f, count));
+                error.add(getErrorVariableName(f));
             }
-            count++;
         }
 
         if (settings.objective == CartogramSettings.Objective.MAX_ERROR
@@ -207,45 +206,45 @@ public class SubdivisionToBilinearProblem {
                 return lin;
             case AVERAGE_ERROR:
                 lin = new ObjectiveFunction.Linear();
-                int count = 0;
+                
                 for (SubdivisionFace f : sub.getTopLevelFaces()) {
                     if (!f.isBoundary() && !f.isSea()) {
-                        lin.addTerm(1, getErrorVariableName(f, count));
+                        lin.addTerm(1, getErrorVariableName(f));
                     }
-                    count++;
                 }
+                
                 return lin;
             case MAX_AND_AVERAGE_ERROR:
                 lin = new ObjectiveFunction.Linear();
                 lin.addTerm(nWeightedFaces, MAX_ERROR_VARIABLE_NAME);
-                count = 0;
+                
                 for (SubdivisionFace f : sub.getTopLevelFaces()) {
                     if (!f.isBoundary() && !f.isSea()) {
-                        lin.addTerm(1, getErrorVariableName(f, count));
+                        lin.addTerm(1, getErrorVariableName(f));
                     }
-                    count++;
                 }
+                
                 return lin;
             case AVERAGE_ERROR_SQUARED:
                 quad = new ObjectiveFunction.Quadratic();
-                count = 0;
+                
                 for (SubdivisionFace f : sub.getTopLevelFaces()) {
                     if (!f.isBoundary() && !f.isSea()) {
-                        quad.addQuadraticTerm(1, getErrorVariableName(f, count));
+                        quad.addQuadraticTerm(1, getErrorVariableName(f));
                     }
-                    count++;
                 }
+                
                 return quad;
             case MAX_AND_AVERAGE_ERROR_SQUARED:
                 quad = new ObjectiveFunction.Quadratic();
                 quad.addLinearTerm(nWeightedFaces, MAX_ERROR_VARIABLE_NAME);
-                count = 0;
+                
                 for (SubdivisionFace f : sub.getTopLevelFaces()) {
                     if (!f.isBoundary() && !f.isSea()) {
-                        quad.addQuadraticTerm(1, getErrorVariableName(f, count));
+                        quad.addQuadraticTerm(1, getErrorVariableName(f));
                     }
-                    count++;
                 }
+                
                 return quad;
             default:
                 throw new IllegalArgumentException("Unexpected objective function type: " + settings.objective);
@@ -394,12 +393,11 @@ public class SubdivisionToBilinearProblem {
                 .sum();
         double weightToArea = settings.cartogramWidth * settings.cartogramHeight / totalWeight;
 
-        int count = 0;
         for (SubdivisionFace f : sub.getTopLevelFaces()) {
             if (!f.isBoundary() && !f.isSea()) {
                 double desiredArea = weightToArea * f.getWeight();
                 FaceSegments segs = segments.get(f);
-                String err = getErrorVariableName(f, count);
+                String err = getErrorVariableName(f);
 
                 List<Pair<Double, Pair<String, String>>> area = Arrays.asList(
                         new Pair<>(1d, new Pair<>(segs.right.name, segs.top.name)),
@@ -430,17 +428,22 @@ public class SubdivisionToBilinearProblem {
                     // err <= max
                     problem.addConstraint(new Constraint.Linear(Arrays.asList(
                             new Pair<>(1d, MAX_ERROR_VARIABLE_NAME),
-                            new Pair<>(-1d, getErrorVariableName(f, count))),
+                            new Pair<>(-1d, getErrorVariableName(f))),
                             Constraint.Comparison.GREATER_THAN_OR_EQUAL,
                             0));
                 }
             }
-
-            count++;
         }
     }
-
-    private static String getErrorVariableName(SubdivisionFace face, int count) {
-        return "E_" + count + "_" + face.getName();
+    
+    private String getErrorVariableName(SubdivisionFace face) {
+        String err = errorVariables.get(face);
+        
+        if (err == null) {
+            err = "E_" + errorVariables.size() + "_" + face.getName();
+            errorVariables.put(face, err);
+        }
+        
+        return err;
     }
 }
