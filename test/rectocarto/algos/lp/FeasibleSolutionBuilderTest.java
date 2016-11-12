@@ -16,7 +16,6 @@
 package rectocarto.algos.lp;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -97,7 +96,7 @@ public class FeasibleSolutionBuilderTest {
         "exampleData/Subdivisions/Netherlands Area.sub",
         "exampleData/Subdivisions/World.sub"
     };
-
+    
     /**
      * Test of constructFeasibleSolution1 method, of class
      * FeasibleSolutionBuilder.
