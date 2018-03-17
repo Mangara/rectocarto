@@ -26,20 +26,20 @@ import rectocarto.data.lp.MinimizationProblem;
 import rectocarto.data.lp.ObjectiveFunction;
 import rectocarto.data.lp.Solution;
 
-public class CLPSolver implements LinearSolver {
+public class CLPSolver implements LinearSolver, QuadraticSolver {
 
     @Override
-    public Solution solve(MinimizationProblem linearProgram) {
-        Pair<CLP, Map<String, CLPVariable>> conversion = convertToCLP(linearProgram);
+    public Solution solve(MinimizationProblem quadraticProgram) {
+        Pair<CLP, Map<String, CLPVariable>> conversion = convertToCLP(quadraticProgram);
         return extractSolution(conversion.getFirst(), conversion.getSecond());
     }
 
-    private Pair<CLP, Map<String, CLPVariable>> convertToCLP(MinimizationProblem linearProgram) {
+    private Pair<CLP, Map<String, CLPVariable>> convertToCLP(MinimizationProblem quadraticProgram) {
         CLP model = new CLP().minimization();
-        Map<String, CLPVariable> variables = new HashMap<>(linearProgram.getConstraints().size());
+        Map<String, CLPVariable> variables = new HashMap<>(quadraticProgram.getConstraints().size());
 
         // Add all the constraints (variables are added as-needed)
-        for (Constraint constraint : linearProgram.getConstraints()) {
+        for (Constraint constraint : quadraticProgram.getConstraints()) {
             Constraint.Linear linear = (Constraint.Linear) constraint;
             CLPExpression clpConstraint = model.createExpression();
 
@@ -61,10 +61,17 @@ public class CLPSolver implements LinearSolver {
         }
 
         // Set the objective function
-        ObjectiveFunction.Linear objective = (ObjectiveFunction.Linear) linearProgram.getObjective();
+        if (quadraticProgram.getObjective() instanceof ObjectiveFunction.Linear) {
+            ObjectiveFunction.Linear objective = (ObjectiveFunction.Linear) quadraticProgram.getObjective();
 
-        for (Pair<Double, String> term : objective.getTerms()) {
-            variables.get(term.getSecond()).obj(term.getFirst());
+            for (Pair<Double, String> term : objective.getTerms()) {
+                variables.get(term.getSecond()).obj(term.getFirst());
+            }
+        } else {
+            ObjectiveFunction.Quadratic objective = (ObjectiveFunction.Quadratic) quadraticProgram.getObjective();
+            
+            // TODO
+            throw new Error("Not implemented yet.");
         }
 
         return new Pair<>(model, variables);
