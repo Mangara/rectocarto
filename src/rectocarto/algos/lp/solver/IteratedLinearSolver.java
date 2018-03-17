@@ -15,6 +15,7 @@
  */
 package rectocarto.algos.lp.solver;
 
+import java.util.Map;
 import java.util.Set;
 import rectangularcartogram.data.Pair;
 import rectocarto.algos.lp.BilinearToLinear;
@@ -52,17 +53,31 @@ public class IteratedLinearSolver {
         // Build a first partial solution from the feasible solution
         Solution lastSolution = new Solution(feasibleSolution.getObjectiveValue());
         for (String var : variablePartition.getFirst()) {
-            lastSolution.put(var, lastSolution.get(var));
+            lastSolution.put(var, feasibleSolution.get(var));
         }
 
         for (int i = 0; i < nIterations; i++) {
             lastSolution.keySet().retainAll(variablePartition.getFirst());
+            System.out.println("Iteration " + i + "a. Last solution: " + lastSolution);
             lastSolution = solver.solve(BilinearToLinear.restrictToLinear(bilinearProgram, lastSolution));
             
             lastSolution.keySet().retainAll(variablePartition.getSecond());
+            System.out.println("Iteration " + i + "b. Last solution: " + lastSolution);
             lastSolution = solver.solve(BilinearToLinear.restrictToLinear(bilinearProgram, lastSolution));
         }
+        
+        // Run a final iteration to build a complete solution
+        lastSolution.keySet().retainAll(variablePartition.getFirst());
+        Solution finalSolution = solver.solve(BilinearToLinear.restrictToLinear(bilinearProgram, lastSolution));
+        finalSolution.putAll(lastSolution);
+        
+        for (Map.Entry<String, Double> entry : feasibleSolution.entrySet()) {
+            finalSolution.putIfAbsent(entry.getKey(), entry.getValue());
+        }
+        
+        System.out.println("Last solution: " + lastSolution);
+        System.out.println("Final solution: " + finalSolution);
 
-        return lastSolution;
+        return finalSolution;
     }
 }
