@@ -45,6 +45,10 @@ public class CartogramSettings {
      * non-sea regions.
      */
     public double maximumAspectRatio = 10;
+    /**
+     * The fraction of the total area that should be covered by sea regions.
+     */
+    public double seaAreaFraction = 0.4;
 
     /**
      * The type of objective function that should be used when constructing this

@@ -103,9 +103,10 @@ public class FeasibleSolutionBuilderTest {
      */
     //@Test
     public void testConstructFeasibleSolution1() throws IOException, IncorrectGraphException {
-        System.out.println("constructFeasibleSolution1 - old method"); // 589 infeasible vs 133 feasible
+        System.out.println("constructFeasibleSolution1 - old method"); // 132 feasible
 
         for (String map : maps) {
+            System.out.println();
             System.out.println("Map: " + map);
             try (BufferedReader in = Files.newBufferedReader(Paths.get(map))) {
                 Subdivision sub = Subdivision.load(in);
@@ -136,16 +137,13 @@ public class FeasibleSolutionBuilderTest {
             }
         }
     }
-
-    /**
-     * Test of constructFeasibleSolution2 method, of class
-     * FeasibleSolutionBuilder.
-     */
+    
     @Test
-    public void testConstructFeasibleSolution2() throws IOException, IncorrectGraphException {
-        System.out.println("constructFeasibleSolution2 - new method");
+    public void testConstructFeasibleSolution3() throws IOException, IncorrectGraphException {
+        System.out.println("constructFeasibleSolution3 - newer method"); // 152 feasible
 
         for (String map : maps) {
+            System.out.println();
             System.out.println("Map: " + map);
             try (BufferedReader in = Files.newBufferedReader(Paths.get(map))) {
                 Subdivision sub = Subdivision.load(in);
@@ -156,10 +154,10 @@ public class FeasibleSolutionBuilderTest {
                     MinimizationProblem problem = s2bp.getProblem();
 
                     try {
-                        Solution sol = FeasibleSolutionBuilder.constructFeasibleSolution2(sub, settings, problem, s2bp.segments, new CLPSolver());
+                        Solution sol = FeasibleSolutionBuilder.constructFeasibleSolution3(sub, settings, problem, s2bp.segments, s2bp.predecessors, s2bp.successors, new CLPSolver());
 
                         if (sol != Solution.INFEASIBLE) {
-                            (new IPEExporter()).exportIPEFile(Paths.get("temp.ipe").toFile(), getCartogram(sub, sol, s2bp.segments), false);
+                            //(new IPEExporter()).exportIPEFile(Paths.get("temp.ipe").toFile(), getCartogram(sub, sol, s2bp.segments), false);
                         }
 
                         if (sol == Solution.INFEASIBLE) {
@@ -198,7 +196,7 @@ public class FeasibleSolutionBuilderTest {
         return true;
     }
 
-    private static final double EPSILON = 0.000000001;
+    private static final double EPSILON = 0.0000001;
 
     private boolean constraintIsSatisfied(Constraint constraint, Solution sol) {
         double val;
@@ -212,6 +210,9 @@ public class FeasibleSolutionBuilderTest {
             throw new IllegalArgumentException("Unexpected constraint type: " + constraint);
         }
 
+        //System.out.println("Constraint: " + constraint);
+        //System.out.println("LHS: " + val);
+        
         switch (constraint.getComparison()) {
             case EQUAL:
                 return Math.abs(val - constraint.getRightHandSide()) < EPSILON;
@@ -230,10 +231,10 @@ public class FeasibleSolutionBuilderTest {
         for (SubdivisionFace face : sub.getTopLevelFaces()) {
             ArrayList<Vertex> corners = new ArrayList<>(4);
 
-            double left = sol.get(segments.get(face).left.name);
-            double right = sol.get(segments.get(face).right.name);
-            double bottom = sol.get(segments.get(face).bottom.name);
-            double top = sol.get(segments.get(face).top.name);
+            double left = sol.get(segments.get(face).left);
+            double right = sol.get(segments.get(face).right);
+            double bottom = sol.get(segments.get(face).bottom);
+            double top = sol.get(segments.get(face).top);
 
             corners.add(new Vertex(left, bottom));
             corners.add(new Vertex(right, bottom));

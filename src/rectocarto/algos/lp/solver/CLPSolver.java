@@ -31,10 +31,7 @@ public class CLPSolver implements LinearSolver {
     @Override
     public Solution solve(MinimizationProblem linearProgram) {
         Pair<CLP, Map<String, CLPVariable>> conversion = convertToCLP(linearProgram);
-        CLP model = conversion.getFirst();
-        Map<String, CLPVariable> variables = conversion.getSecond();
-
-        return extractSolution(model, variables);
+        return extractSolution(conversion.getFirst(), conversion.getSecond());
     }
 
     private Pair<CLP, Map<String, CLPVariable>> convertToCLP(MinimizationProblem linearProgram) {

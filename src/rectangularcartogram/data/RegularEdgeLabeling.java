@@ -289,6 +289,11 @@ public class RegularEdgeLabeling extends HashMap<Edge, Pair<Labeling, Direction>
      * Changes this labeling to a random neighbour by flipping the color of all edges inside a random alternating 4-cycle.
      */
     public void moveRandomlyLocal() {
+        if (graph.getFourCycles().isEmpty()) {
+            // Unique REL
+            return;
+        }
+        
         boolean changed = false;
 
         while (!changed) {

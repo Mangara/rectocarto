@@ -19,22 +19,19 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Map;
-import rectangularcartogram.algos.RectangularDualDrawer;
 import rectangularcartogram.algos.ga.LabelingGA;
 import rectangularcartogram.algos.ga.selection.RankSelection;
 import rectangularcartogram.data.Pair;
 import rectangularcartogram.data.RegularEdgeLabeling;
 import rectangularcartogram.data.subdivision.Subdivision;
-import rectangularcartogram.data.subdivision.SubdivisionFace;
 import rectangularcartogram.exceptions.IncorrectGraphException;
 import rectangularcartogram.measures.BoundingBoxSeparationMeasure;
-import rectocarto.algos.lp.SegmentIdentification;
 import rectocarto.algos.lp.SubdivisionToBilinearProblem;
 import rectocarto.algos.lp.solver.CLPSolver;
 import rectocarto.algos.lp.solver.IteratedLinearSolver;
 import rectocarto.data.CartogramSettings;
 import rectocarto.data.lp.MinimizationProblem;
+import rectocarto.data.lp.Solution;
 
 public class Test {
 
@@ -43,7 +40,7 @@ public class Test {
     }
     
     private static void generateSimpleCartogramLP() throws IOException, IncorrectGraphException {
-        try (BufferedReader in = Files.newBufferedReader(Paths.get("exampleData/Subdivisions/Simple.sub"))) {
+        try (BufferedReader in = Files.newBufferedReader(Paths.get("exampleData/Subdivisions/World.sub"))) {
             // Load a subdivision
             Subdivision sub = Subdivision.load(in);
             computeDecentREL(sub);
@@ -55,9 +52,11 @@ public class Test {
             System.out.println();
             System.out.println("Feasible solution: ");
             System.out.println(builder.getFeasibleSolution());
-
-            IteratedLinearSolver solver = new IteratedLinearSolver(new CLPSolver());
-            solver.solve(p, new Pair<>(builder.getHorizontalSegmentVariables(), builder.getVerticalSegmentVariables()), builder.getFeasibleSolution());
+            
+            System.out.println("Best solution found:");
+            IteratedLinearSolver solver = new IteratedLinearSolver(new CLPSolver(), 10);
+            Solution sol = solver.solve(p, new Pair<>(builder.getHorizontalSegmentVariables(), builder.getVerticalSegmentVariables()), builder.getFeasibleSolution());
+            System.out.println(sol);
         }
     }
 

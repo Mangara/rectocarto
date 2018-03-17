@@ -28,11 +28,11 @@ public class SegmentIdentification {
 
     static Map<SubdivisionFace, FaceSegments> identifySegments(Subdivision sub) {
         // Create all segments
-        Map<SubdivisionFace, FaceSegments> segments = new HashMap<>(2 * sub.getFaces().size());
+        Map<SubdivisionFace, RealFaceSegments> segments = new HashMap<>(2 * sub.getFaces().size());
         int count = 0;
 
         for (SubdivisionFace face : sub.getTopLevelFaces()) {
-            FaceSegments s = new FaceSegments();
+            RealFaceSegments s = new RealFaceSegments();
             s.left = new Segment("v" + count);
             s.right = new Segment("v" + (count + 1));
             s.bottom = new Segment("h" + count);
@@ -42,21 +42,21 @@ public class SegmentIdentification {
         }
 
         // Add boundary constraints (necessary because these edges are unlabelled)
-        FaceSegments northSegments = segments.get(sub.getNorthFace());
-        FaceSegments eastSegments = segments.get(sub.getEastFace());
-        FaceSegments southSegments = segments.get(sub.getSouthFace());
-        FaceSegments westSegments = segments.get(sub.getWestFace());
-        
+        RealFaceSegments northSegments = segments.get(sub.getNorthFace());
+        RealFaceSegments eastSegments = segments.get(sub.getEastFace());
+        RealFaceSegments southSegments = segments.get(sub.getSouthFace());
+        RealFaceSegments westSegments = segments.get(sub.getWestFace());
+
         northSegments.left.merge(westSegments.right);
         northSegments.right.merge(eastSegments.left);
         northSegments.top.merge(westSegments.top);
         northSegments.top.merge(eastSegments.top);
-        
+
         southSegments.left.merge(westSegments.right);
         southSegments.right.merge(eastSegments.left);
         southSegments.bottom.merge(westSegments.bottom);
         southSegments.bottom.merge(eastSegments.bottom);
-        
+
         // Run union-find to eliminate duplicates
         RegularEdgeLabeling rel = sub.getDualGraph().getRegularEdgeLabeling();
         for (Edge edge : sub.getDualGraph().getEdges()) {
@@ -73,19 +73,36 @@ public class SegmentIdentification {
             }
         }
 
-        // Update the segment mapping
+        // Build the final segment mapping
+        Map<SubdivisionFace, FaceSegments> finalSegments = new HashMap<>(2 * sub.getFaces().size());
+
         for (SubdivisionFace face : sub.getTopLevelFaces()) {
-            FaceSegments s = segments.get(face);
-            s.left = s.left.findRepresentative();
-            s.right = s.right.findRepresentative();
-            s.bottom = s.bottom.findRepresentative();
-            s.top = s.top.findRepresentative();
+            finalSegments.put(face, extractNames(segments.get(face)));
         }
 
-        return segments;
+        return finalSegments;
+    }
+    
+    public static class FaceSegments {
+
+        String left, top, right, bottom;
+
+        @Override
+        public String toString() {
+            return "S[" + "left=" + left + ", top=" + top + ", right=" + right + ", bottom=" + bottom + ']';
+        }
     }
 
-    static class FaceSegments {
+    private static FaceSegments extractNames(RealFaceSegments segs) {
+        FaceSegments result = new FaceSegments();
+        result.left = segs.left.findRepresentative().name;
+        result.right = segs.right.findRepresentative().name;
+        result.bottom = segs.bottom.findRepresentative().name;
+        result.top = segs.top.findRepresentative().name;
+        return result;
+    }
+
+    private static class RealFaceSegments {
 
         Segment left, top, right, bottom;
 
@@ -93,11 +110,9 @@ public class SegmentIdentification {
         public String toString() {
             return "S[" + "left=" + left + ", top=" + top + ", right=" + right + ", bottom=" + bottom + ']';
         }
-        
-        
     }
 
-    static class Segment {
+    private static class Segment {
 
         String name;
         Segment parent = this;
