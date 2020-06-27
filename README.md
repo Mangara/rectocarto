@@ -14,7 +14,7 @@ To build the project, open it with a recent version of [NetBeans](https://netbea
 
 ## Authors
 
-* **Sander Verdonschot** - [Mangara](https://bitbucket.org/Mangara/)
+* **Sander Verdonschot** - [Mangara](https://github.com/Mangara)
 
 ## License
 
